@@ -1,0 +1,16 @@
+(include_subdirs unqualified)
+
+(library
+ (public_name crunchlib)
+ (libraries core_kernel menhirlib llvm)
+ (inline_tests)
+ (flags :standard -open Core_kernel)
+ (preprocess (pps ppx_jane)))
+
+(ocamllex
+ (modules lexer))
+
+(menhir
+ (modules parser)
+ (flags :standard --table --explain)
+ (infer true))
