@@ -9,17 +9,34 @@
 %token<float> FLOAT
 %token<string> IDENT
 
-%token LPAREN "("
-%token RPAREN ")"
+(* Keywords *)
+%token RETURN "return"
 
+(* Operators *)
 %token PLUS "+"
 
-%start<Ast.Expr.t> prog
+(* Misc. symbols *)
+%token LPAREN "("
+%token RPAREN ")"
+%token SEMI ";"
+%token COLON_EQ ":="
+
+%start<Ast.Stmt.t> stmt_eof
+%start<Ast.Expr.t> expr_eof
 
 %%
 
-prog:
+stmt_eof:
+  | s = stmt; EOF { s }
+  ;
+
+expr_eof:
   | e = expr; EOF { e }
+  ;
+
+stmt:
+  | dst = expr; ":="; src = expr; ";" { Stmt.assign ~loc:$loc ~src ~dst }
+  | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
   ;
 
 expr:

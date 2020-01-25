@@ -28,3 +28,17 @@ module Expr = struct
 
   let add = binop ~op:Bop.add
 end
+
+module Stmt = struct
+  type t =
+    | Assign of {
+        loc: Srcloc.t;
+        dst: Expr.t;
+        src: Expr.t;
+      }
+    | Return of {
+        loc: Srcloc.t;
+        arg: Expr.t option;
+      }
+  [@@deriving sexp_of, variants]
+end

@@ -14,9 +14,12 @@ let ident = ('_' | letter) ('_' | letter | digit)*
 rule read =
   parse
   | white { read lexbuf }
+  | "return" { RETURN }
+  | "+" { PLUS }
   | "(" { LPAREN }
   | ")" { RPAREN }
-  | "+" { PLUS }
+  | ";" { SEMI }
+  | ":=" { COLON_EQ }
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }
   | ident as id { IDENT id }
