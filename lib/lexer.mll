@@ -14,13 +14,25 @@ let ident = ('_' | letter) ('_' | letter | digit)*
 rule read =
   parse
   | white { read lexbuf }
+
+  | "fun" { FUN }
   | "return" { RETURN }
-  | "+" { PLUS }
+  | "void" { VOID }
+
   | "(" { LPAREN }
   | ")" { RPAREN }
+  | "{" { LBRACE }
+  | "}" { RBRACE }
+
   | ";" { SEMI }
+  | "," { COMMA }
+  | ":" { COLON }
   | ":=" { COLON_EQ }
+
+  | "+" { PLUS }
+
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }
   | ident as id { IDENT id }
+
   | eof { EOF }

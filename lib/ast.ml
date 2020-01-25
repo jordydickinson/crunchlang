@@ -1,3 +1,9 @@
+module Type_expr = struct
+  type t =
+    | Void of { loc: Srcloc.t }
+  [@@deriving sexp_of, variants]
+end
+
 module Expr = struct
   module Bop = struct
     type t =
@@ -39,6 +45,18 @@ module Stmt = struct
     | Return of {
         loc: Srcloc.t;
         arg: Expr.t option;
+      }
+  [@@deriving sexp_of, variants]
+end
+
+module Decl = struct
+  type t =
+    | Fun of {
+        loc: Srcloc.t;
+        name: string;
+        params: (string * Type_expr.t) list;
+        ret_type: Type_expr.t;
+        body: Stmt.t list;
       }
   [@@deriving sexp_of, variants]
 end

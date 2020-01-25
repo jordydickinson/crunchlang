@@ -8,6 +8,11 @@ let print_parse_stmt s =
   |> Ast.Stmt.sexp_of_t
   |> print_s
 
+let print_parse_decl s =
+  Driver.parse_decl_string s
+  |> Ast.Decl.sexp_of_t
+  |> print_s
+
 (*** Expressions ***)
 
 let%expect_test _ =
@@ -85,3 +90,11 @@ let%expect_test _ =
   [%expect {|
     (Assign (loc (:1:0 :1:7)) (dst (Name (loc (:1:0 :1:1)) (ident x)))
      (src (Int (loc (:1:5 :1:6)) (value 1)))) |}]
+
+(*** Declarations ***)
+
+let%expect_test _ =
+  print_parse_decl "fun nop(): void {}";
+  [%expect {|
+    (Fun (loc (:1:0 :1:18)) (name nop) (params ())
+     (ret_type (Void (loc (:1:11 :1:15)))) (body ())) |}]
