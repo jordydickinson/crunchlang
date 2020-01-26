@@ -12,7 +12,10 @@
 (* Keywords *)
 %token FUN "fun"
 %token RETURN "return"
+
+(* Types *)
 %token VOID "void"
+%token INT64 "int64"
 
 (* Operators *)
 %token PLUS "+"
@@ -27,11 +30,16 @@
 %token COLON ":"
 %token COLON_EQ ":="
 
+%start<Ast.t> prog
 %start<Ast.Decl.t> decl_eof
 %start<Ast.Stmt.t> stmt_eof
 %start<Ast.Expr.t> expr_eof
 
 %%
+
+prog:
+  | ds = decl*; EOF { ds }
+  ;
 
 decl_eof:
   | d = decl; EOF { d }
@@ -76,6 +84,7 @@ atom:
 
 type_expr:
   | "void" { Type_expr.void ~loc:$loc }
+  | "int64" { Type_expr.int64 ~loc:$loc }
   ;
 
 %%

@@ -17,7 +17,9 @@ rule read =
 
   | "fun" { FUN }
   | "return" { RETURN }
+
   | "void" { VOID }
+  | "int64" { INT64 }
 
   | "(" { LPAREN }
   | ")" { RPAREN }

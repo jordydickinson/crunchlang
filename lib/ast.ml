@@ -1,6 +1,7 @@
 module Type_expr = struct
   type t =
     | Void of { loc: Srcloc.t }
+    | Int64 of { loc: Srcloc.t }
   [@@deriving sexp_of, variants]
 end
 
@@ -60,3 +61,5 @@ module Decl = struct
       }
   [@@deriving sexp_of, variants]
 end
+
+type t = Decl.t list
