@@ -56,3 +56,52 @@ let%expect_test _ =
     entry:
       ret double add (double 1.000000e+00, double 2.000000e+00)
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      let x = 1;
+      return x;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      ret i64 1
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      let x = 1;
+      return x + 2;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      ret i64 3
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      let x = 1;
+      let y = 2;
+      return x + y;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      ret i64 3
+    } |}]

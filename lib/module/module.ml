@@ -1,5 +1,7 @@
 open Llvm
 
+module Env = Module_codegen_env
+
 let () = enable_pretty_stacktrace ()
 
 type t = llmodule
@@ -39,6 +41,7 @@ let emit_obj module_ ~filename =
     target
 
 let codegen module_ (ast: Ast.t) =
+  let env = Env.create () in
   let return_type = ref Type.Void in
 
   let codegen_type (typ: Type.t) =
@@ -72,26 +75,36 @@ let codegen module_ (ast: Ast.t) =
           value
       in
       value, typ
+    | Name { loc = _; ident } ->
+      Env.lookup env ident
     | Binop { loc = _; op = Add; lhs; rhs } ->
       let lhs, lhs_type = codegen_expr lhs in
       let rhs, rhs_type = codegen_expr rhs in
       if not @@ Type.equal lhs_type rhs_type
       then failwith "Type error"
       else build_add lhs rhs "addtmp" builder, lhs_type
-    | _ -> assert false
   in
 
   let codegen_stmt (stmt: Ast.Stmt.t) ~builder =
     match stmt with
+    | Let { loc = _; ident; typ = None; binding } ->
+      let value, typ = codegen_expr binding ~builder in
+      Env.bind env ~ident ~typ ~value
+    | Let { loc = _; ident; typ = Some typ; binding } ->
+      let typ = Type.of_type_expr typ in
+      let value, value_type = codegen_expr binding ~builder in
+      if not @@ Type.equal typ value_type
+      then failwith "Type error"
+      else Env.bind env ~ident ~typ ~value
     | Return { loc = _; arg = None } ->
       if not @@ Type.equal !return_type Type.Void
       then failwith "Type error"
-      else build_ret_void builder
+      else ignore (build_ret_void builder : llvalue)
     | Return { loc = _; arg = Some arg } ->
       let arg, typ = codegen_expr arg ~builder in
       if not @@ Type.equal !return_type typ
       then failwith "Type error"
-      else build_ret arg builder
+      else ignore (build_ret arg builder : llvalue)
     | _ -> assert false
   in
 
@@ -99,7 +112,7 @@ let codegen module_ (ast: Ast.t) =
     match block with
     | [] -> ()
     | stmt :: block ->
-      let _ : llvalue = codegen_stmt stmt ~builder in
+      codegen_stmt stmt ~builder;
       codegen_block block ~builder
   in
 
