@@ -1,6 +1,42 @@
 open Llvm
 
-let codegen (ast: Ast.t) ~module_ =
+type t = llmodule
+
+let with_new_module name ~f =
+  let context = create_context () in
+  let module_ = create_module context name in
+  let ret = f module_ in
+  dispose_module module_;
+  dispose_context context;
+  ret
+
+let llir_string = string_of_llmodule
+
+let write_llir module_ filename =
+  print_module filename module_
+
+let dump_llir = dump_module
+
+let init = lazy (Llvm_all_backends.initialize ())
+
+let get_triple () =
+  Lazy.force init;
+  Llvm_target.Target.default_triple ()
+
+let get_target ~triple =
+  let target = Llvm_target.Target.by_triple triple in
+  Llvm_target.TargetMachine.create ~triple target
+
+let emit_obj module_ ~filename =
+  let triple = get_triple () in
+  let target = get_target ~triple in
+  Llvm_target.TargetMachine.emit_to_file
+    module_
+    Llvm_target.CodeGenFileType.ObjectFile
+    filename
+    target
+
+let codegen module_ (ast: Ast.t) =
   let codegen_type_expr (type_expr: Ast.Type_expr.t) =
     match type_expr with
     | Void { loc = _ } -> void_type (module_context module_)

@@ -1,15 +1,15 @@
 (lang dune 2.0)
-(name crunchlib)
+(name crunch)
 (license "MIT")
 (authors "Jordy Dickinson <jordy.dickinson@icloud.com>")
-(source (github jordydickinson/geode))
+(source (github jordydickinson/crunch))
 (generate_opam_files true)
 (using menhir 2.0)
 
 (package
- (name crunchlib)
+ (name crunch)
  (synopsis "Crunch programming language")
  (depends
-  ("core_kernel" (= 0.13))
+  ("core" (= 0.13))
   ("menhir" (>= 20190924))
   ("llvm" (and (>= 9.0) (< 10.0)))))

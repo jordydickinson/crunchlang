@@ -21,3 +21,12 @@ let parse_prog_string s =
   let checkpt = Parser.Incremental.prog lexbuf.lex_curr_p in
   let supplier = Parser.MenhirInterpreter.lexer_lexbuf_to_supplier Lexer.read lexbuf in
   Parser.MenhirInterpreter.loop supplier checkpt
+
+let parse_channel in_channel =
+  let lexbuf = Lexing.from_channel in_channel in
+  let checkpt = Parser.Incremental.prog lexbuf.lex_curr_p in
+  let supplier = Parser.MenhirInterpreter.lexer_lexbuf_to_supplier Lexer.read lexbuf in
+  Parser.MenhirInterpreter.loop supplier checkpt
+
+let parse_file filename =
+  In_channel.with_file filename ~f:parse_channel
