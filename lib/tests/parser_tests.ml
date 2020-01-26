@@ -103,6 +103,18 @@ let%expect_test _ =
     (Let (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
      (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
 
+let%expect_test _ =
+  print_parse_stmt "var x = 1;";
+  [%expect {|
+    (Var (loc (:1:0 :1:10)) (ident x)
+     (binding (Int (loc (:1:8 :1:9)) (value 1)))) |}]
+
+let%expect_test _ =
+  print_parse_stmt "var x: int64 = 1;";
+  [%expect {|
+    (Var (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
+     (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
+
 (*** Declarations ***)
 
 let%expect_test _ =

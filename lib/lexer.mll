@@ -17,6 +17,7 @@ rule read =
 
   | "fun" { KW_FUN }
   | "let" { KW_LET }
+  | "var" { KW_VAR }
   | "return" { KW_RETURN }
 
   | "void" { KW_VOID }

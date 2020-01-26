@@ -45,6 +45,12 @@ module Stmt = struct
         typ: Type_expr.t option [@sexp.option];
         binding: Expr.t;
       }
+    | Var of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type_expr.t option [@sexp.option];
+        binding: Expr.t;
+      }
     | Assign of {
         loc: Srcloc.t;
         dst: Expr.t;

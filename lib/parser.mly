@@ -12,6 +12,7 @@
 (* Keywords *)
 %token KW_FUN "fun"
 %token KW_LET "let"
+%token KW_VAR "var"
 %token KW_RETURN "return"
 
 (* Types *)
@@ -71,6 +72,8 @@ param:
 stmt:
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
+  | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
+    { Stmt.var ~loc:$loc ~ident ~typ ~binding }
   | dst = expr; ":="; src = expr; ";" { Stmt.assign ~loc:$loc ~src ~dst }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
   ;
