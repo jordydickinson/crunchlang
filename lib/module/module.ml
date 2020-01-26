@@ -1,5 +1,7 @@
 open Llvm
 
+let () = enable_pretty_stacktrace ()
+
 type t = llmodule
 
 let with_new_module name ~f =
