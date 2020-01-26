@@ -16,6 +16,7 @@ rule read =
   | white { read lexbuf }
 
   | "fun" { KW_FUN }
+  | "let" { KW_LET }
   | "return" { KW_RETURN }
 
   | "void" { KW_VOID }
@@ -31,6 +32,7 @@ rule read =
   | "," { COMMA }
   | ":" { COLON }
   | ":=" { COLON_EQ }
+  | "=" { EQ }
 
   | "+" { PLUS }
 

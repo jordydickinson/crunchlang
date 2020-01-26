@@ -11,6 +11,7 @@
 
 (* Keywords *)
 %token KW_FUN "fun"
+%token KW_LET "let"
 %token KW_RETURN "return"
 
 (* Types *)
@@ -30,6 +31,7 @@
 %token SEMI ";"
 %token COLON ":"
 %token COLON_EQ ":="
+%token EQ "="
 
 %start<Ast.t> prog
 %start<Ast.Decl.t> decl_eof
@@ -57,16 +59,18 @@ expr_eof:
 decl:
   | "fun"; name = IDENT;
     "("; params = separated_list(",", param); ")";
-    ":"; ret_type = type_expr;
+    ret_type = type_annot;
     "{"; body = stmt*; "}"
     { Decl.fun_ ~loc:$loc ~name ~params ~ret_type ~body }
   ;
 
 param:
-  | name = IDENT; ":"; typ = type_expr { name, typ }
+  | name = IDENT; typ = type_annot { name, typ }
   ;
 
 stmt:
+  | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
+    { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
   | dst = expr; ":="; src = expr; ";" { Stmt.assign ~loc:$loc ~src ~dst }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
   ;
@@ -81,6 +85,10 @@ atom:
   | value = FLOAT { Expr.float ~loc:$loc ~value }
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
   | "("; e = expr; ")" { e }
+  ;
+
+type_annot:
+  | ":" typ = type_expr { typ }
   ;
 
 type_expr:

@@ -91,6 +91,18 @@ let%expect_test _ =
     (Assign (loc (:1:0 :1:7)) (dst (Name (loc (:1:0 :1:1)) (ident x)))
      (src (Int (loc (:1:5 :1:6)) (value 1)))) |}]
 
+let%expect_test _ =
+  print_parse_stmt "let x = 1;";
+  [%expect {|
+    (Let (loc (:1:0 :1:10)) (ident x)
+     (binding (Int (loc (:1:8 :1:9)) (value 1)))) |}]
+
+let%expect_test _ =
+  print_parse_stmt "let x: int64 = 1;";
+  [%expect {|
+    (Let (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
+     (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
+
 (*** Declarations ***)
 
 let%expect_test _ =
