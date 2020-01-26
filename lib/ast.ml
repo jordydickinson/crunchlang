@@ -46,7 +46,7 @@ module Stmt = struct
       }
     | Return of {
         loc: Srcloc.t;
-        arg: Expr.t option;
+        arg: Expr.t option [@sexp.option];
       }
   [@@deriving sexp_of, variants]
 end

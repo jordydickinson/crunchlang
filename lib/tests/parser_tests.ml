@@ -83,7 +83,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_parse_stmt "return x;";
-  [%expect {| (Return (loc (:1:0 :1:9)) (arg ((Name (loc (:1:7 :1:8)) (ident x))))) |}]
+  [%expect {| (Return (loc (:1:0 :1:9)) (arg (Name (loc (:1:7 :1:8)) (ident x)))) |}]
 
 let%expect_test _ =
   print_parse_stmt "x := 1;";
