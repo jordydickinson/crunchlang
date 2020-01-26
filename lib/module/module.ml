@@ -37,34 +37,59 @@ let emit_obj module_ ~filename =
     target
 
 let codegen module_ (ast: Ast.t) =
+  let return_type = ref Type.Void in
+
+  let codegen_type (typ: Type.t) =
+    match typ with
+    | Void -> void_type (module_context module_)
+    | Int64 -> i64_type (module_context module_)
+    | Float -> double_type (module_context module_)
+  in
+
   let codegen_type_expr (type_expr: Ast.Type_expr.t) =
-    match type_expr with
-    | Void { loc = _ } -> void_type (module_context module_)
-    | Int64 { loc = _ } -> i64_type (module_context module_)
+    codegen_type @@ Type.of_type_expr type_expr
   in
 
   let rec codegen_expr (expr: Ast.Expr.t) ~builder =
     let codegen_expr = codegen_expr ~builder in
     match expr with
     | Int { loc = _; value } ->
-      const_of_int64
-        (i64_type @@ module_context module_)
-        value
-        true (* Signed *)
+      let typ = Type.Int64 in
+      let value =
+        const_of_int64
+          (codegen_type typ)
+          value
+          true (* Signed *)
+      in
+      value, typ
+    | Float { loc = _; value } ->
+      let typ = Type.Float in
+      let value =
+        const_float
+          (codegen_type typ)
+          value
+      in
+      value, typ
     | Binop { loc = _; op = Add; lhs; rhs } ->
-      let lhs = codegen_expr lhs in
-      let rhs = codegen_expr rhs in
-      build_add lhs rhs "addtmp" builder
+      let lhs, lhs_type = codegen_expr lhs in
+      let rhs, rhs_type = codegen_expr rhs in
+      if not @@ Type.equal lhs_type rhs_type
+      then failwith "Type error"
+      else build_add lhs rhs "addtmp" builder, lhs_type
     | _ -> assert false
   in
 
   let codegen_stmt (stmt: Ast.Stmt.t) ~builder =
     match stmt with
     | Return { loc = _; arg = None } ->
-      build_ret_void builder
+      if not @@ Type.equal !return_type Type.Void
+      then failwith "Type error"
+      else build_ret_void builder
     | Return { loc = _; arg = Some arg } ->
-      let arg = codegen_expr arg ~builder in
-      build_ret arg builder
+      let arg, typ = codegen_expr arg ~builder in
+      if not @@ Type.equal !return_type typ
+      then failwith "Type error"
+      else build_ret arg builder
     | _ -> assert false
   in
 
@@ -79,6 +104,7 @@ let codegen module_ (ast: Ast.t) =
   let codegen_decl (decl: Ast.Decl.t) =
     match decl with
     | Fun { loc = _; name; params = []; ret_type; body } ->
+      return_type := Type.of_type_expr ret_type;
       let typ = function_type (codegen_type_expr ret_type) [||] in
       let func = define_function name typ module_ in
       let entry = entry_block func in

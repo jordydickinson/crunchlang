@@ -2,6 +2,7 @@ module Type_expr = struct
   type t =
     | Void of { loc: Srcloc.t }
     | Int64 of { loc: Srcloc.t }
+    | Float of { loc: Srcloc.t }
   [@@deriving sexp_of, variants]
 end
 

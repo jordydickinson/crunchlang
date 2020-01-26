@@ -10,12 +10,13 @@
 %token<string> IDENT
 
 (* Keywords *)
-%token FUN "fun"
-%token RETURN "return"
+%token KW_FUN "fun"
+%token KW_RETURN "return"
 
 (* Types *)
-%token VOID "void"
-%token INT64 "int64"
+%token KW_VOID "void"
+%token KW_INT64 "int64"
+%token KW_FLOAT "float"
 
 (* Operators *)
 %token PLUS "+"
@@ -85,6 +86,7 @@ atom:
 type_expr:
   | "void" { Type_expr.void ~loc:$loc }
   | "int64" { Type_expr.int64 ~loc:$loc }
+  | "float" { Type_expr.float ~loc:$loc }
   ;
 
 %%

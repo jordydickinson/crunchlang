@@ -15,11 +15,12 @@ rule read =
   parse
   | white { read lexbuf }
 
-  | "fun" { FUN }
-  | "return" { RETURN }
+  | "fun" { KW_FUN }
+  | "return" { KW_RETURN }
 
-  | "void" { VOID }
-  | "int64" { INT64 }
+  | "void" { KW_VOID }
+  | "int64" { KW_INT64 }
+  | "float" { KW_FLOAT }
 
   | "(" { LPAREN }
   | ")" { RPAREN }

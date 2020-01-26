@@ -41,3 +41,18 @@ let%expect_test _ =
     entry:
       ret i64 3
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): float {
+      return 1.0 + 2.0;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define double @main() {
+    entry:
+      ret double add (double 1.000000e+00, double 2.000000e+00)
+    } |}]
