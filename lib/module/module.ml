@@ -185,6 +185,7 @@ let codegen module_ (ast: Ast.t) =
         Env.bind_let env ~ident ~typ ~value
       end;
       codegen_block body ~builder;
+      ignore (build_ret_void builder : llvalue);
       Env.exit_scope env;
       Env.bind_let env ~ident:name ~typ ~value:func
   in

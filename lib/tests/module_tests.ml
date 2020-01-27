@@ -14,6 +14,7 @@ let%expect_test _ =
 
     define void @main() {
     entry:
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -24,6 +25,7 @@ let%expect_test _ =
 
     define void @main() {
     entry:
+      ret void
       ret void
     } |}]
 
@@ -40,6 +42,7 @@ let%expect_test _ =
     define i64 @main() {
     entry:
       ret i64 3
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -55,6 +58,7 @@ let%expect_test _ =
     define double @main() {
     entry:
       ret double 3.000000e+00
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -71,6 +75,7 @@ let%expect_test _ =
     define i64 @main() {
     entry:
       ret i64 1
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -87,6 +92,7 @@ let%expect_test _ =
     define i64 @main() {
     entry:
       ret i64 3
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -104,6 +110,7 @@ let%expect_test _ =
     define i64 @main() {
     entry:
       ret i64 3
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -123,6 +130,7 @@ let%expect_test _ =
       store i64 1, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -144,6 +152,7 @@ let%expect_test _ =
       store i64 2, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -173,6 +182,7 @@ let%expect_test _ =
       %y4 = load i64, i64* %y
       %addtmp5 = add i64 %x3, %y4
       ret i64 %addtmp5
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -194,6 +204,7 @@ let%expect_test _ =
       store i64 2, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -210,6 +221,7 @@ let%expect_test _ =
     entry:
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -230,12 +242,14 @@ let%expect_test _ =
     entry:
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
+      ret void
     }
 
     define i64 @main() {
     entry:
       %calltmp = call i64 @add1(i64 1)
       ret i64 %calltmp
+      ret void
     } |}]
 
 let%expect_test _ =
@@ -258,6 +272,7 @@ let%expect_test _ =
     entry:
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
+      ret void
     }
 
     define i64 @main() {
@@ -269,4 +284,5 @@ let%expect_test _ =
       store i64 %calltmp, i64* %x
       %x2 = load i64, i64* %x
       ret i64 %x2
+      ret void
     } |}]
