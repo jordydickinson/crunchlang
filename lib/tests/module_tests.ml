@@ -211,3 +211,62 @@ let%expect_test _ =
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun add1(x: int64): int64 {
+      return x + 1;
+    }
+
+    fun main(): int64 {
+      return add1(1);
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @add1(i64 %x) {
+    entry:
+      %addtmp = add i64 %x, 1
+      ret i64 %addtmp
+    }
+
+    define i64 @main() {
+    entry:
+      %calltmp = call i64 @add1(i64 1)
+      ret i64 %calltmp
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun add1(x: int64): int64 {
+      return x + 1;
+    }
+
+    fun main(): int64 {
+      var x = 1;
+      x := add1(x);
+      return x;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @add1(i64 %x) {
+    entry:
+      %addtmp = add i64 %x, 1
+      ret i64 %addtmp
+    }
+
+    define i64 @main() {
+    entry:
+      %x = alloca i64
+      store i64 1, i64* %x
+      %x1 = load i64, i64* %x
+      %calltmp = call i64 @add1(i64 %x1)
+      store i64 %calltmp, i64* %x
+      %x2 = load i64, i64* %x
+      ret i64 %x2
+    } |}]

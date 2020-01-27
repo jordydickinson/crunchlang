@@ -70,6 +70,7 @@ param:
   ;
 
 stmt:
+  | e = expr; ";" { Stmt.expr e }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
   | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
@@ -79,8 +80,14 @@ stmt:
   ;
 
 expr:
+  | e = infix { e }
+  | callee = expr; "("; args = separated_list(",", expr); ")"
+    { Expr.call ~loc:$loc ~callee ~args }
+  ;
+
+infix:
   | e = atom { e }
-  | lhs = expr; "+"; rhs = atom { Expr.add ~loc:$loc ~lhs ~rhs }
+  | lhs = infix; "+"; rhs = atom { Expr.add ~loc:$loc ~lhs ~rhs }
   ;
 
 atom:

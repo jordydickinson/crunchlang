@@ -32,6 +32,11 @@ module Expr = struct
         lhs: t;
         rhs: t;
       }
+    | Call of {
+        loc: Srcloc.t;
+        callee: t;
+        args: t list;
+      }
   [@@deriving sexp_of, variants]
 
   let add = binop ~op:Bop.add
@@ -39,6 +44,7 @@ end
 
 module Stmt = struct
   type t =
+    | Expr of Expr.t
     | Let of {
         loc: Srcloc.t;
         ident: string;

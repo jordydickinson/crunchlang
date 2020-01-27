@@ -44,15 +44,14 @@ let codegen module_ (ast: Ast.t) =
   let env = Env.create () in
   let return_type = ref Type.Void in
 
-  let codegen_type (typ: Type.t) =
+  let rec codegen_type (typ: Type.t) =
     match typ with
     | Void -> void_type (module_context module_)
     | Int64 -> i64_type (module_context module_)
     | Float -> double_type (module_context module_)
-  in
-
-  let codegen_type_expr (type_expr: Ast.Type_expr.t) =
-    codegen_type @@ Type.of_type_expr type_expr
+    | Fun { params; ret } ->
+      function_type (codegen_type ret)
+      @@ Array.of_list_map params ~f:codegen_type
   in
 
   let codegen_rvalue_name ~loc:_ ~ident ~builder =
@@ -93,6 +92,18 @@ let codegen module_ (ast: Ast.t) =
         build_fadd lhs rhs "faddtmp" builder, lhs_type
       else
         assert false
+    | Call { loc = _; callee; args } ->
+      let callee, callee_type = codegen_rvalue callee in
+      let args, arg_types = List.map args ~f:codegen_rvalue |> List.unzip in
+      if not @@ Type.is_fun callee_type then
+        failwith "Type error"
+      else if not @@ [%equal: Type.t list] arg_types (Type.params_exn callee_type) then
+        failwith "Type error"
+      else
+        build_call
+          callee (Array.of_list args)
+          "calltmp" builder,
+        Type.ret_exn callee_type
   in
 
   let codegen_lvalue_name ~loc:_ ~ident ~builder:_ =
@@ -103,12 +114,13 @@ let codegen module_ (ast: Ast.t) =
 
   let codegen_lvalue (expr: Ast.Expr.t) ~builder =
     match expr with
-    | Int _ | Float _ | Binop _ -> failwith "Not an lvalue"
+    | Int _ | Float _ | Binop _ | Call _ -> failwith "Not an lvalue"
     | Name { loc; ident } -> codegen_lvalue_name ~loc ~ident ~builder
   in
 
   let codegen_stmt (stmt: Ast.Stmt.t) ~builder =
     match stmt with
+    | Expr expr -> ignore (codegen_rvalue expr ~builder : llvalue * Type.t)
     | Let { loc = _; ident; typ = None; binding } ->
       let value, typ = codegen_rvalue binding ~builder in
       Env.bind_let env ~ident ~typ ~value
@@ -158,21 +170,23 @@ let codegen module_ (ast: Ast.t) =
   let codegen_decl (decl: Ast.Decl.t) =
     match decl with
     | Fun { loc = _; name; params; ret_type; body } ->
+      let params = List.map params ~f:(fun (ident, typ) -> ident, Type.of_type_expr typ) in
+      let param_types = List.map params ~f:snd in
       let ret_type = Type.of_type_expr ret_type in
+      let typ = Type.fun_ ~params:param_types ~ret:ret_type in
       return_type := ret_type;
-      let param_types = Array.of_list_map params ~f:(Fn.compose codegen_type_expr snd) in
-      let typ = function_type (codegen_type ret_type) param_types in
-      let func = define_function name typ module_ in
+      let func = define_function name (codegen_type typ) module_ in
       let entry = entry_block func in
       let builder = builder_at_end (module_context module_) entry in
       Env.enter_scope env;
       List.iteri params ~f:begin fun i (ident, typ) ->
         let value = param func i in
         set_value_name ident value;
-        Env.bind_let env ~ident ~typ:(Type.of_type_expr typ) ~value
+        Env.bind_let env ~ident ~typ ~value
       end;
       codegen_block body ~builder;
       Env.exit_scope env;
+      Env.bind_let env ~ident:name ~typ ~value:func
   in
 
   List.iter ast ~f:codegen_decl
