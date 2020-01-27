@@ -105,3 +105,93 @@ let%expect_test _ =
     entry:
       ret i64 3
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      var x = 1;
+      return x;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      %x = alloca i64
+      store i64 1, i64* %x
+      %x1 = load i64, i64* %x
+      ret i64 %x1
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      var x = 1;
+      x := 2;
+      return x;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      %x = alloca i64
+      store i64 1, i64* %x
+      store i64 2, i64* %x
+      %x1 = load i64, i64* %x
+      ret i64 %x1
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      var x = 1;
+      var y = 2;
+      x := x + y;
+      return x + y;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      %x = alloca i64
+      store i64 1, i64* %x
+      %y = alloca i64
+      store i64 2, i64* %y
+      %x1 = load i64, i64* %x
+      %y2 = load i64, i64* %y
+      %addtmp = add i64 %x1, %y2
+      store i64 %addtmp, i64* %x
+      %x3 = load i64, i64* %x
+      %y4 = load i64, i64* %y
+      %addtmp5 = add i64 %x3, %y4
+      ret i64 %addtmp5
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      var x: int64 = 1;
+      x := 2;
+      return x;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      %x = alloca i64
+      store i64 1, i64* %x
+      store i64 2, i64* %x
+      %x1 = load i64, i64* %x
+      ret i64 %x1
+    } |}]

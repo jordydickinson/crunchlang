@@ -55,8 +55,14 @@ let codegen module_ (ast: Ast.t) =
     codegen_type @@ Type.of_type_expr type_expr
   in
 
-  let rec codegen_expr (expr: Ast.Expr.t) ~builder =
-    let codegen_expr = codegen_expr ~builder in
+  let codegen_rvalue_name ~loc:_ ~ident ~builder =
+    match Env.lookup env ident with
+    | Let { value; typ } -> value, typ
+    | Var { pointer; typ } -> build_load pointer ident builder, typ
+  in
+
+  let rec codegen_rvalue (expr: Ast.Expr.t) ~builder =
+    let codegen_rvalue = codegen_rvalue ~builder in
     match expr with
     | Int { loc = _; value } ->
       let typ = Type.Int64 in
@@ -75,37 +81,65 @@ let codegen module_ (ast: Ast.t) =
           value
       in
       value, typ
-    | Name { loc = _; ident } ->
-      Env.lookup env ident
+    | Name { loc; ident } -> codegen_rvalue_name ~loc ~ident ~builder
     | Binop { loc = _; op = Add; lhs; rhs } ->
-      let lhs, lhs_type = codegen_expr lhs in
-      let rhs, rhs_type = codegen_expr rhs in
+      let lhs, lhs_type = codegen_rvalue lhs in
+      let rhs, rhs_type = codegen_rvalue rhs in
       if not @@ Type.equal lhs_type rhs_type
       then failwith "Type error"
       else build_add lhs rhs "addtmp" builder, lhs_type
   in
 
+  let codegen_lvalue_name ~loc:_ ~ident ~builder:_ =
+    match Env.lookup env ident with
+    | Let _ -> failwith "Not an lvalue"
+    | Var { pointer; typ } -> pointer, typ
+  in
+
+  let codegen_lvalue (expr: Ast.Expr.t) ~builder =
+    match expr with
+    | Int _ | Float _ | Binop _ -> failwith "Not an lvalue"
+    | Name { loc; ident } -> codegen_lvalue_name ~loc ~ident ~builder
+  in
+
   let codegen_stmt (stmt: Ast.Stmt.t) ~builder =
     match stmt with
     | Let { loc = _; ident; typ = None; binding } ->
-      let value, typ = codegen_expr binding ~builder in
-      Env.bind env ~ident ~typ ~value
+      let value, typ = codegen_rvalue binding ~builder in
+      Env.bind_let env ~ident ~typ ~value
     | Let { loc = _; ident; typ = Some typ; binding } ->
       let typ = Type.of_type_expr typ in
-      let value, value_type = codegen_expr binding ~builder in
+      let value, value_type = codegen_rvalue binding ~builder in
       if not @@ Type.equal typ value_type
       then failwith "Type error"
-      else Env.bind env ~ident ~typ ~value
+      else Env.bind_let env ~ident ~typ ~value
+    | Var { loc = _; ident; typ = None; binding } ->
+      let value, typ = codegen_rvalue binding ~builder in
+      let pointer = build_alloca (codegen_type typ) ident builder in
+      ignore (build_store value pointer builder : llvalue);
+      Env.bind_var env ~ident ~typ ~pointer
+    | Var { loc = _; ident; typ = Some typ; binding } ->
+      let typ = Type.of_type_expr typ in
+      let value, value_type = codegen_rvalue binding ~builder in
+      if not @@ Type.equal typ value_type then failwith "Type error";
+      let pointer = build_alloca (codegen_type typ) ident builder in
+      ignore (build_store value pointer builder : llvalue);
+      Env.bind_var env ~ident ~typ ~pointer
+    | Assign { loc = _; dst; src } ->
+      let dst, dst_type = codegen_lvalue dst ~builder in
+      let src, src_type = codegen_rvalue src ~builder in
+      if not @@ Type.equal dst_type src_type
+      then failwith "Type error"
+      else ignore (build_store src dst builder : llvalue)
     | Return { loc = _; arg = None } ->
       if not @@ Type.equal !return_type Type.Void
       then failwith "Type error"
       else ignore (build_ret_void builder : llvalue)
     | Return { loc = _; arg = Some arg } ->
-      let arg, typ = codegen_expr arg ~builder in
+      let arg, typ = codegen_rvalue arg ~builder in
       if not @@ Type.equal !return_type typ
       then failwith "Type error"
       else ignore (build_ret arg builder : llvalue)
-    | _ -> assert false
   in
 
   let rec codegen_block (block: Ast.Stmt.t list) ~builder =

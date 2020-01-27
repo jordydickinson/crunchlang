@@ -1,8 +1,18 @@
 open Llvm
 
+type binding =
+  | Let of {
+      value: llvalue;
+      typ: Type.t;
+    }
+  | Var of {
+      pointer: llvalue;
+      typ: Type.t
+    }
+
 type t = {
   scopes: string Stack.t Stack.t;
-  bindings: (llvalue * Type.t) list String.Table.t
+  bindings: binding list String.Table.t
 }
 
 let enter_scope env =
@@ -14,9 +24,17 @@ let exit_scope env =
     Hashtbl.remove_multi env.bindings ident
   end
 
-let bind env ~ident ~typ ~value =
+let bind env ~ident ~binding =
   Stack.push env.scopes @@ Stack.create ();
-  Hashtbl.add_multi env.bindings ~key:ident ~data:(value, typ)
+  Hashtbl.add_multi env.bindings ~key:ident ~data:binding
+
+let bind_let env ~ident ~typ ~value =
+  let binding = Let { value; typ } in
+  bind env ~ident ~binding
+
+let bind_var env ~ident ~typ ~pointer =
+  let binding = Var { pointer; typ } in
+  bind env ~ident ~binding
 
 let lookup env ident =
   Hashtbl.find_multi env.bindings ident
