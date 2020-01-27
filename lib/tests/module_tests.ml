@@ -54,7 +54,7 @@ let%expect_test _ =
 
     define double @main() {
     entry:
-      ret double add (double 1.000000e+00, double 2.000000e+00)
+      ret double 3.000000e+00
     } |}]
 
 let%expect_test _ =

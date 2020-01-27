@@ -85,9 +85,14 @@ let codegen module_ (ast: Ast.t) =
     | Binop { loc = _; op = Add; lhs; rhs } ->
       let lhs, lhs_type = codegen_rvalue lhs in
       let rhs, rhs_type = codegen_rvalue rhs in
-      if not @@ Type.equal lhs_type rhs_type
-      then failwith "Type error"
-      else build_add lhs rhs "addtmp" builder, lhs_type
+      if not @@ Type.equal lhs_type rhs_type then
+        failwith "Type error"
+      else if Type.equal lhs_type Type.Int64 then
+        build_add lhs rhs "addtmp" builder, lhs_type
+      else if Type.equal rhs_type Type.Float then
+        build_fadd lhs rhs "faddtmp" builder, lhs_type
+      else
+        assert false
   in
 
   let codegen_lvalue_name ~loc:_ ~ident ~builder:_ =
