@@ -47,6 +47,7 @@ let codegen module_ (ast: Ast.t) =
   let rec codegen_type (typ: Type.t) =
     match typ with
     | Void -> void_type (module_context module_)
+    | Bool -> i1_type (module_context module_)
     | Int64 -> i64_type (module_context module_)
     | Float -> double_type (module_context module_)
     | Fun { params; ret } ->
@@ -70,6 +71,14 @@ let codegen module_ (ast: Ast.t) =
           (codegen_type typ)
           value
           true (* Signed *)
+      in
+      value, typ
+    | Bool { loc = _; value } ->
+      let typ = Type.Bool in
+      let value =
+        const_int
+          (codegen_type typ)
+          (if value then 1 else 0)
       in
       value, typ
     | Float { loc = _; value } ->
@@ -114,7 +123,8 @@ let codegen module_ (ast: Ast.t) =
 
   let codegen_lvalue (expr: Ast.Expr.t) ~builder =
     match expr with
-    | Int _ | Float _ | Binop _ | Call _ -> failwith "Not an lvalue"
+    | Int _ | Bool _ | Float _
+    | Binop _ | Call _ -> failwith "Not an lvalue"
     | Name { loc; ident } -> codegen_lvalue_name ~loc ~ident ~builder
   in
 

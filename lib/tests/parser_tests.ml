@@ -20,6 +20,14 @@ let%expect_test _ =
   [%expect {| (Int (loc (:1:0 :1:1)) (value 1)) |}]
 
 let%expect_test _ =
+  print_parse_expr "true";
+  [%expect {| (Bool (loc (:1:0 :1:4)) (value true)) |}]
+
+let%expect_test _ =
+  print_parse_expr "false";
+  [%expect {| (Bool (loc (:1:0 :1:5)) (value false)) |}]
+
+let%expect_test _ =
   print_parse_expr "1.1";
   [%expect {| (Float (loc (:1:0 :1:3)) (value 1.1)) |}]
 

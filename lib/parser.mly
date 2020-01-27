@@ -17,8 +17,13 @@
 
 (* Types *)
 %token KW_VOID "void"
+%token KW_BOOL "bool"
 %token KW_INT64 "int64"
 %token KW_FLOAT "float"
+
+(* Booleans *)
+%token KW_TRUE "true"
+%token KW_FALSE "false"
 
 (* Operators *)
 %token PLUS "+"
@@ -93,6 +98,8 @@ infix:
 atom:
   | value = INT { Expr.int ~loc:$loc ~value }
   | value = FLOAT { Expr.float ~loc:$loc ~value }
+  | "true" { Expr.bool ~loc:$loc ~value:true }
+  | "false" { Expr.bool ~loc:$loc ~value:false }
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
   | "("; e = expr; ")" { e }
   ;
@@ -103,6 +110,7 @@ type_annot:
 
 type_expr:
   | "void" { Type_expr.void ~loc:$loc }
+  | "bool" { Type_expr.bool ~loc:$loc }
   | "int64" { Type_expr.int64 ~loc:$loc }
   | "float" { Type_expr.float ~loc:$loc }
   ;

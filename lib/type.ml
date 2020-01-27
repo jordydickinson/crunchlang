@@ -1,5 +1,6 @@
 type t =
   | Void
+  | Bool
   | Int64
   | Float
   | Fun of {
@@ -11,6 +12,7 @@ type t =
 let of_type_expr (type_expr: Ast.Type_expr.t) =
   match type_expr with
   | Void _ -> Void
+  | Bool _ -> Bool
   | Int64 _ -> Int64
   | Float _ -> Float
 
