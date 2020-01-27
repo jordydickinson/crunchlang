@@ -158,7 +158,9 @@ let codegen module_ (ast: Ast.t) =
       let func = define_function name typ module_ in
       let entry = entry_block func in
       let builder = builder_at_end (module_context module_) entry in
-      codegen_block body ~builder
+      Env.enter_scope env;
+      codegen_block body ~builder;
+      Env.exit_scope env;
     | _ -> assert false
   in
 
