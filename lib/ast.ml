@@ -50,6 +50,7 @@ end
 module Stmt = struct
   type t =
     | Expr of Expr.t
+    | Block of t list
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -67,6 +68,12 @@ module Stmt = struct
         dst: Expr.t;
         src: Expr.t;
       }
+    | If of {
+        loc: Srcloc.t;
+        cond: Expr.t;
+        iftrue: t;
+        iffalse: t option [@sexp.option];
+      }
     | Return of {
         loc: Srcloc.t;
         arg: Expr.t option [@sexp.option];
@@ -81,7 +88,7 @@ module Decl = struct
         name: string;
         params: (string * Type_expr.t) list;
         ret_type: Type_expr.t;
-        body: Stmt.t list;
+        body: Stmt.t;
       }
   [@@deriving sexp_of, variants]
 end

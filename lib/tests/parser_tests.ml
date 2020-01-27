@@ -123,10 +123,22 @@ let%expect_test _ =
     (Var (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
      (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
 
+let%expect_test _ =
+  print_parse_stmt "if true {}";
+  [%expect {|
+    (If (loc (:1:0 :1:10)) (cond (Bool (loc (:1:3 :1:7)) (value true)))
+     (iftrue (Block ()))) |}]
+
+let%expect_test _ =
+  print_parse_stmt "if true {} else {}";
+  [%expect {|
+    (If (loc (:1:0 :1:18)) (cond (Bool (loc (:1:3 :1:7)) (value true)))
+     (iftrue (Block ())) (iffalse (Block ()))) |}]
+
 (*** Declarations ***)
 
 let%expect_test _ =
   print_parse_decl "fun nop(): void {}";
   [%expect {|
     (Fun (loc (:1:0 :1:18)) (name nop) (params ())
-     (ret_type (Void (loc (:1:11 :1:15)))) (body ())) |}]
+     (ret_type (Void (loc (:1:11 :1:15)))) (body (Block ()))) |}]

@@ -13,6 +13,8 @@
 %token KW_FUN "fun"
 %token KW_LET "let"
 %token KW_VAR "var"
+%token KW_IF "if"
+%token KW_ELSE "else"
 %token KW_RETURN "return"
 
 (* Types *)
@@ -66,7 +68,7 @@ decl:
   | "fun"; name = IDENT;
     "("; params = separated_list(",", param); ")";
     ret_type = type_annot;
-    "{"; body = stmt*; "}"
+    body = block;
     { Decl.fun_ ~loc:$loc ~name ~params ~ret_type ~body }
   ;
 
@@ -81,7 +83,22 @@ stmt:
   | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.var ~loc:$loc ~ident ~typ ~binding }
   | dst = expr; ":="; src = expr; ";" { Stmt.assign ~loc:$loc ~src ~dst }
+  | if_ = if_stmt { if_ }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
+  ;
+
+block:
+  | "{"; stmts = stmt*; "}" { Stmt.block stmts }
+  ;
+
+if_stmt:
+  | "if"; cond = expr; iftrue = block; iffalse = else_clause?
+    { Stmt.if_ ~loc:$loc ~cond ~iftrue ~iffalse }
+  ;
+
+else_clause:
+  | "else"; b = block { b }
+  | "else"; if_ = if_stmt { if_ }
   ;
 
 expr:
