@@ -11,5 +11,5 @@
  (synopsis "Crunch programming language")
  (depends
   ("core" (= 0.13))
-  ("menhir" (>= 20190924))
+  ("menhir" (>= 20200123))
   ("llvm" (and (>= 9.0) (< 10.0)))))

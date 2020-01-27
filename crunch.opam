@@ -8,7 +8,7 @@ bug-reports: "https://github.com/jordydickinson/crunch/issues"
 depends: [
   "dune" {>= "2.0"}
   "core" {= "0.13"}
-  "menhir" {>= "20190924"}
+  "menhir" {>= "20200123"}
   "llvm" {>= "9.0" & < "10.0"}
 ]
 build: [
