@@ -195,3 +195,19 @@ let%expect_test _ =
       %x1 = load i64, i64* %x
       ret i64 %x1
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(x: int64): int64 {
+      return x + 1;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main(i64 %x) {
+    entry:
+      %addtmp = add i64 %x, 1
+      ret i64 %addtmp
+    } |}]

@@ -157,16 +157,22 @@ let codegen module_ (ast: Ast.t) =
 
   let codegen_decl (decl: Ast.Decl.t) =
     match decl with
-    | Fun { loc = _; name; params = []; ret_type; body } ->
-      return_type := Type.of_type_expr ret_type;
-      let typ = function_type (codegen_type_expr ret_type) [||] in
+    | Fun { loc = _; name; params; ret_type; body } ->
+      let ret_type = Type.of_type_expr ret_type in
+      return_type := ret_type;
+      let param_types = Array.of_list_map params ~f:(Fn.compose codegen_type_expr snd) in
+      let typ = function_type (codegen_type ret_type) param_types in
       let func = define_function name typ module_ in
       let entry = entry_block func in
       let builder = builder_at_end (module_context module_) entry in
       Env.enter_scope env;
+      List.iteri params ~f:begin fun i (ident, typ) ->
+        let value = param func i in
+        set_value_name ident value;
+        Env.bind_let env ~ident ~typ:(Type.of_type_expr typ) ~value
+      end;
       codegen_block body ~builder;
       Env.exit_scope env;
-    | _ -> assert false
   in
 
   List.iter ast ~f:codegen_decl
