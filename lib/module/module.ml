@@ -128,9 +128,10 @@ let codegen module_ (ast: Ast.t) =
     | Name { loc; ident } -> codegen_lvalue_name ~loc ~ident ~builder
   in
 
-  let rec codegen_stmt (stmt: Ast.Stmt.t) ~builder =
+  let rec codegen_stmt (stmt: Ast.Stmt.t) ~func ~builder =
     match stmt with
-    | Block _ -> invalid_arg "Not a statement"
+    | Block stmts -> codegen_block stmts ~func ~builder
+    | If _ -> assert false (* Must be handled by codegen_flow *)
     | Expr expr -> ignore (codegen_rvalue expr ~builder : llvalue * Type.t)
     | Let { loc = _; ident; typ = None; binding } ->
       let value, typ = codegen_rvalue binding ~builder in
@@ -159,7 +160,6 @@ let codegen module_ (ast: Ast.t) =
       if not @@ Type.equal dst_type src_type
       then failwith "Type error"
       else ignore (build_store src dst builder : llvalue)
-    | If _ -> assert false
     | Return { loc = _; arg = None } ->
       if not @@ Type.equal !return_type Type.Void
       then failwith "Type error"
@@ -169,16 +169,43 @@ let codegen module_ (ast: Ast.t) =
       if not @@ Type.equal !return_type typ
       then failwith "Type error"
       else ignore (build_ret arg builder : llvalue)
-  and codegen_block (block: Ast.Stmt.t) ~func ~name =
-    match block with
-    | Block stmts ->
-      Env.enter_scope env;
-      let block = append_block (module_context module_) name func in
-      let builder = builder_at_end (module_context module_) block in
-      List.iter stmts ~f:(codegen_stmt ~builder);
-      Env.exit_scope env;
-      block
-    | _ -> invalid_arg "Not a block"
+  and codegen_block (stmts: Ast.Stmt.t list) ~func ~builder =
+    match stmts with
+    | [] -> ()
+    | If { loc = _; cond; iftrue; iffalse } :: stmts ->
+      let continue = codegen_basicblock (Ast.Stmt.block stmts) ~func ~name:"body" in
+      let cond, cond_type = codegen_rvalue cond ~builder in
+      if not @@ Type.equal cond_type Type.Bool then failwith "Type error";
+      let iftrue =
+        codegen_basicblock iftrue
+          ~func
+          ~continue
+          ~name:"iftrue" in
+      let iffalse =
+        let wrap_nonblock stmt =
+          match stmt with
+          | Ast.Stmt.Block _ -> stmt
+          | _ -> Ast.Stmt.Block [stmt] in
+        let codegen_iffalse =
+          Fn.compose (codegen_basicblock ~func ~continue ~name:"iffalse")
+            wrap_nonblock in
+        Option.value_map iffalse
+          ~default:continue
+          ~f:codegen_iffalse in
+      ignore (build_cond_br cond iftrue iffalse builder : llvalue)
+    | stmt :: stmts ->
+      codegen_stmt stmt ~func ~builder;
+      codegen_block stmts ~func ~builder;
+  and codegen_basicblock ?continue (stmt: Ast.Stmt.t) ~func ~name =
+    let block = append_block (module_context module_) name func in
+    let builder = builder_at_end (module_context module_) block in
+    codegen_stmt stmt ~func ~builder;
+    begin match continue, block_terminator block with
+      | None, _ -> ()
+      | _, Some _ -> ()
+      | Some continue, None -> ignore (build_br continue builder : llvalue)
+    end;
+    block
   in
 
   let codegen_decl (decl: Ast.Decl.t) =
@@ -194,31 +221,33 @@ let codegen module_ (ast: Ast.t) =
 
       (* Define *)
       let func = define_function name (codegen_type typ) module_ in
+
+      (* Body *)
       Env.enter_scope env;
       List.iteri params ~f:begin fun i (ident, typ) ->
         let value = param func i in
         set_value_name ident value;
         Env.bind_let env ~ident ~typ ~value
       end;
-      let body = codegen_block body ~func ~name:"body" in
+      let body = codegen_basicblock body ~func ~name:"body" in
       Env.exit_scope env;
 
-      (* Branch to body *)
+      (* Branch from entry block to body *)
       let entry = entry_block func in
-      let builder = builder_at_end (module_context module_) entry in
-      ignore (build_br body builder : llvalue);
+      let entry_builder = builder_at_end (module_context module_) entry in
+      ignore (build_br body entry_builder : llvalue);
 
       (* Check for block terminators *)
-      let implicit_void = Type.equal ret_type Type.Void in
+      let implicit_return = Type.equal ret_type Type.void in
       Array.iter (basic_blocks func) ~f:begin fun block ->
         match block_terminator block with
         | Some _ -> ()
         | None ->
-          if implicit_void then
+          if implicit_return then begin
             let builder = builder_at_end (module_context module_) block in
             ignore (build_ret_void builder : llvalue)
-          else
-            failwith "Missing return statement in non-void function"
+          end else
+            failwith "Missing return in non-void function"
       end;
 
       (* Bind *)

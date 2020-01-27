@@ -14,6 +14,9 @@ let%expect_test _ =
 
     define void @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret void
     } |}]
 
@@ -25,7 +28,9 @@ let%expect_test _ =
 
     define void @main() {
     entry:
-      ret void
+      br label %body
+
+    body:                                             ; preds = %entry
       ret void
     } |}]
 
@@ -41,8 +46,10 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret i64 3
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -57,8 +64,10 @@ let%expect_test _ =
 
     define double @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret double 3.000000e+00
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -74,8 +83,10 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret i64 1
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -91,8 +102,10 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret i64 3
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -109,8 +122,10 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       ret i64 3
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -126,11 +141,13 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %x = alloca i64
       store i64 1, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -147,12 +164,14 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %x = alloca i64
       store i64 1, i64* %x
       store i64 2, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -170,6 +189,9 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %x = alloca i64
       store i64 1, i64* %x
       %y = alloca i64
@@ -182,7 +204,6 @@ let%expect_test _ =
       %y4 = load i64, i64* %y
       %addtmp5 = add i64 %x3, %y4
       ret i64 %addtmp5
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -199,12 +220,14 @@ let%expect_test _ =
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %x = alloca i64
       store i64 1, i64* %x
       store i64 2, i64* %x
       %x1 = load i64, i64* %x
       ret i64 %x1
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -219,9 +242,11 @@ let%expect_test _ =
 
     define i64 @main(i64 %x) {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -240,16 +265,20 @@ let%expect_test _ =
 
     define i64 @add1(i64 %x) {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
-      ret void
     }
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %calltmp = call i64 @add1(i64 1)
       ret i64 %calltmp
-      ret void
     } |}]
 
 let%expect_test _ =
@@ -270,13 +299,18 @@ let%expect_test _ =
 
     define i64 @add1(i64 %x) {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %addtmp = add i64 %x, 1
       ret i64 %addtmp
-      ret void
     }
 
     define i64 @main() {
     entry:
+      br label %body
+
+    body:                                             ; preds = %entry
       %x = alloca i64
       store i64 1, i64* %x
       %x1 = load i64, i64* %x
@@ -284,5 +318,91 @@ let%expect_test _ =
       store i64 %calltmp, i64* %x
       %x2 = load i64, i64* %x
       ret i64 %x2
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): int64 {
+      var is_true = true;
+      if is_true {
+        return 1;
+      } else {
+        return 2;
+      }
+      return 3;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define i64 @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %is_true = alloca i1
+      store i1 true, i1* %is_true
+      %is_true2 = load i1, i1* %is_true
+      br i1 %is_true2, label %iftrue, label %iffalse
+
+    body1:                                            ; No predecessors!
+      ret i64 3
+
+    iftrue:                                           ; preds = %body
+      ret i64 1
+
+    iffalse:                                          ; preds = %body
+      ret i64 2
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main(): void {
+      if true {
+        if false {
+          return;
+        } else if true {
+          return;
+        } else {
+          return;
+        }
+      }
+      return;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    define void @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      br i1 true, label %iftrue, label %body1
+
+    body1:                                            ; preds = %body
+      ret void
+
+    iftrue:                                           ; preds = %body
+      br i1 false, label %iftrue3, label %iffalse
+
+    body2:                                            ; No predecessors!
+      ret void
+
+    iftrue3:                                          ; preds = %iftrue
+      ret void
+
+    iffalse:                                          ; preds = %iftrue
+      br i1 true, label %iftrue5, label %iffalse6
+
+    body4:                                            ; No predecessors!
+      ret void
+
+    iftrue5:                                          ; preds = %iffalse
+      ret void
+
+    iffalse6:                                         ; preds = %iffalse
       ret void
     } |}]
