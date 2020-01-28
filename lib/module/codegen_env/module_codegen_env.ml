@@ -24,6 +24,11 @@ let exit_scope env =
     Hashtbl.remove_multi env.bindings ident
   end
 
+let scoped env ~f =
+  enter_scope env;
+  protect ~f
+    ~finally:(fun () -> exit_scope env)
+
 let bind env ~ident ~binding =
   Stack.push env.scopes @@ Stack.create ();
   Hashtbl.add_multi env.bindings ~key:ident ~data:binding

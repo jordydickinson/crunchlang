@@ -15,8 +15,7 @@ module type S = sig
 
   val create : unit -> t
 
-  val enter_scope : t -> unit
-  val exit_scope : t -> unit
+  val scoped : t -> f:(unit -> 'a) -> 'a
 
   val bind_let : t -> ident:string -> typ:Type.t -> value:llvalue -> unit
   val bind_var : t -> ident:string -> typ:Type.t -> pointer:llvalue -> unit

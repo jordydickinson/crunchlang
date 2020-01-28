@@ -45,6 +45,14 @@ module Expr = struct
   [@@deriving sexp_of, variants]
 
   let add = binop ~op:Bop.add
+
+  let loc = function
+    | Int { loc; _ }
+    | Bool { loc; _ }
+    | Float { loc; _ }
+    | Name { loc; _ }
+    | Binop { loc; _ }
+    | Call { loc; _ } -> loc
 end
 
 module Stmt = struct
@@ -79,6 +87,11 @@ module Stmt = struct
         arg: Expr.t option [@sexp.option];
       }
   [@@deriving sexp_of, variants]
+
+  let to_block stmt =
+    match stmt with
+    | Block _ -> stmt
+    | _ -> Block [stmt]
 end
 
 module Decl = struct

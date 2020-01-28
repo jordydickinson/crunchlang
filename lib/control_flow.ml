@@ -36,10 +36,17 @@ module Stmt = struct
     | If _
     | Return _
     | Block _ -> assert false
+
+  let loc = function
+    | Let { loc; _ }
+    | Var { loc; _ }
+    | Assign { loc; _ } -> loc
+    | Expr expr -> Expr.loc expr
 end
 
 module Flow = struct
   type t =
+    | Exit
     | Return of {
         loc: Srcloc.t;
         arg: Expr.t option [@sexp.option]
@@ -82,6 +89,12 @@ module Flow = struct
     | Block stmts  :: stmts' ->
       let continue = of_ast_stmts stmts' ~continue in
       of_ast_stmts stmts ~continue
+
+  let loc_exn = function
+    | Exit -> invalid_arg "loc_exn Exit"
+    | Return { loc; _ }
+    | If { loc; _ } -> loc
+    | Seq (stmt, _) -> Stmt.loc stmt
 end
 
 module Decl = struct
@@ -94,6 +107,25 @@ module Decl = struct
         body: Flow.t;
       }
   [@@deriving sexp_of, variants]
+
+  let rec of_ast_decl (decl: Ast.Decl.t) =
+    match decl with
+    | Fun { loc; name; params; ret_type; body = Block stmts } ->
+      Fun {
+        loc; name; params; ret_type;
+        body = Flow.of_ast_stmts stmts ~continue:Exit;
+      }
+    | Fun { loc; name; params; ret_type; body } ->
+      of_ast_decl @@ Fun {
+        loc; name; params; ret_type;
+        body = Ast.Stmt.to_block body;
+      }
 end
 
 type t = Decl.t list
+
+let rec of_ast (ast: Ast.t) =
+  match ast with
+  | [] -> []
+  | decl :: ast ->
+    Decl.of_ast_decl decl :: of_ast ast

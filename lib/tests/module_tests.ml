@@ -14,9 +14,9 @@ let%expect_test _ =
 
     define void @main() {
     entry:
-      br label %body
+      br label %exit
 
-    body:                                             ; preds = %entry
+    exit:                                             ; preds = %entry
       ret void
     } |}]
 
@@ -343,11 +343,8 @@ let%expect_test _ =
     body:                                             ; preds = %entry
       %is_true = alloca i1
       store i1 true, i1* %is_true
-      %is_true2 = load i1, i1* %is_true
-      br i1 %is_true2, label %iftrue, label %iffalse
-
-    body1:                                            ; No predecessors!
-      ret i64 3
+      %is_true1 = load i1, i1* %is_true
+      br i1 %is_true1, label %iftrue, label %iffalse
 
     iftrue:                                           ; preds = %body
       ret i64 1
@@ -380,29 +377,23 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      br i1 true, label %iftrue, label %body1
-
-    body1:                                            ; preds = %body
-      ret void
+      br i1 true, label %iftrue, label %iffalse4
 
     iftrue:                                           ; preds = %body
-      br i1 false, label %iftrue3, label %iffalse
+      br i1 false, label %iftrue1, label %iffalse
 
-    body2:                                            ; No predecessors!
-      ret void
-
-    iftrue3:                                          ; preds = %iftrue
+    iftrue1:                                          ; preds = %iftrue
       ret void
 
     iffalse:                                          ; preds = %iftrue
-      br i1 true, label %iftrue5, label %iffalse6
+      br i1 true, label %iftrue2, label %iffalse3
 
-    body4:                                            ; No predecessors!
+    iftrue2:                                          ; preds = %iffalse
       ret void
 
-    iftrue5:                                          ; preds = %iffalse
+    iffalse3:                                         ; preds = %iffalse
       ret void
 
-    iffalse6:                                         ; preds = %iffalse
+    iffalse4:                                         ; preds = %body
       ret void
     } |}]
