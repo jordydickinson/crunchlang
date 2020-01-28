@@ -104,6 +104,9 @@ module Decl = struct
         body: Stmt.t;
       }
   [@@deriving sexp_of, variants]
+
+  let loc = function
+    | Fun { loc; _ } -> loc
 end
 
 type t = Decl.t list
