@@ -140,5 +140,5 @@ let%expect_test _ =
 let%expect_test _ =
   print_parse_decl "fun nop(): void {}";
   [%expect {|
-    (Fun (loc (:1:0 :1:18)) (name nop) (params ())
+    (Fun (loc (:1:0 :1:18)) (ident nop) (params ())
      (ret_type (Void (loc (:1:11 :1:15)))) (body (Block ()))) |}]

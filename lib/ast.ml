@@ -98,7 +98,7 @@ module Decl = struct
   type t =
     | Fun of {
         loc: Srcloc.t;
-        name: string;
+        ident: string;
         params: (string * Type_expr.t) list;
         ret_type: Type_expr.t;
         body: Stmt.t;

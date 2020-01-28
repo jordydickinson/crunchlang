@@ -205,7 +205,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ~finally:(fun () -> exit := None)
   and codegen_decl' decl =
     match decl with
-    | Fun { loc = _; name; params; ret_type; body } ->
+    | Fun { loc = _; ident; params; ret_type; body } ->
       let params = List.map params ~f:(fun (ident, typ) -> ident, Type.of_type_expr typ) in
 
       (* Type *)
@@ -215,7 +215,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       return_type := ret_type;
 
       (* Definition *)
-      let func = define_function name (codegen_type typ) module_ in
+      let func = define_function ident (codegen_type typ) module_ in
       let body =
         Env.scoped env ~f:begin fun () ->
           List.iteri params ~f:begin fun i (ident, typ) ->
@@ -251,7 +251,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       end;
 
       (* Bind *)
-      Env.bind_let env ~ident:name ~typ ~value:func
+      Env.bind_let env ~ident ~typ ~value:func
   in
   List.iter cf ~f:codegen_decl
 

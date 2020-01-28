@@ -101,7 +101,7 @@ module Decl = struct
   type t =
     | Fun of {
         loc: Srcloc.t;
-        name: string;
+        ident: string;
         params: (string * Type_expr.t) list;
         ret_type: Type_expr.t;
         body: Flow.t;
@@ -110,14 +110,14 @@ module Decl = struct
 
   let rec of_ast_decl (decl: Ast.Decl.t) =
     match decl with
-    | Fun { loc; name; params; ret_type; body = Block stmts } ->
+    | Fun { loc; ident; params; ret_type; body = Block stmts } ->
       Fun {
-        loc; name; params; ret_type;
+        loc; ident; params; ret_type;
         body = Flow.of_ast_stmts stmts ~continue:Exit;
       }
-    | Fun { loc; name; params; ret_type; body } ->
+    | Fun { loc; ident; params; ret_type; body } ->
       of_ast_decl @@ Fun {
-        loc; name; params; ret_type;
+        loc; ident; params; ret_type;
         body = Ast.Stmt.to_block body;
       }
 end
