@@ -40,9 +40,18 @@ let emit_obj module_ ~filename =
     filename
     target
 
+type binding =
+  | Value of llvalue
+  | Pointer of llvalue
+
 let codegen_cf module_ (cf: Control_flow.t) =
-  let env = Env.create () in
-  let return_type = ref Type.Void in
+  let open Or_error.Let_syntax in
+
+  let module Bop = Control_flow.Bop in
+  let module Pure_expr = Control_flow.Pure_expr in
+  let module Expr = Control_flow.Expr in
+
+  let names = String.Table.create () in
 
   let rec codegen_type (typ: Type.t) =
     match typ with
@@ -55,104 +64,84 @@ let codegen_cf module_ (cf: Control_flow.t) =
       @@ Array.of_list_map params ~f:codegen_type
   in
 
-  let codegen_rvalue_name ~loc:_ ~ident ~builder =
-    match Env.lookup env ident with
-    | Let { value; typ } -> value, typ
-    | Var { pointer; typ } -> build_load pointer ident builder, typ
+  let codegen_rvalue_name ident ~builder =
+    match Hashtbl.find_exn names ident with
+    | Value v -> v
+    | Pointer p -> build_load p ident builder
   in
 
-  let rec codegen_rvalue (expr: Control_flow.Expr.t) ~builder =
+  let codegen_bop (op: Bop.t) lhs rhs ~builder =
+    match op with
+    | Add -> build_add lhs rhs "addtmp" builder
+    | Fadd -> build_fadd lhs rhs "addtmp" builder
+  in
+
+  let rec codegen_pure (expr: Pure_expr.t) ~builder =
+    let codegen_pure = codegen_pure ~builder in
+    let typ = Pure_expr.typ expr in
+    match expr with
+    | Int { value; _ } ->
+      const_of_int64 (codegen_type typ) value
+        true (* Signed *)
+    | Bool { value; _ } ->
+      const_int (codegen_type typ)
+        (if value then 1 else 0)
+    | Float { value; _ } ->
+      const_float (codegen_type typ) value
+    | Name { ident; _ } ->
+      codegen_rvalue_name ident ~builder
+    | Binop { op; lhs; rhs; _ } ->
+      let lhs = codegen_pure lhs in
+      let rhs = codegen_pure rhs in
+      codegen_bop op lhs rhs ~builder
+    | Call { callee; args; _ } ->
+      let callee = codegen_pure callee in
+      let args = Array.of_list_map args ~f:codegen_pure in
+      build_call callee args "calltmp" builder
+  in
+
+  let rec codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
     match expr with
-    | Int { loc = _; value } ->
-      let typ = Type.Int64 in
-      let value =
-        const_of_int64
-          (codegen_type typ)
-          value
-          true (* Signed *)
-      in
-      value, typ
-    | Bool { loc = _; value } ->
-      let typ = Type.Bool in
-      let value =
-        const_int
-          (codegen_type typ)
-          (if value then 1 else 0)
-      in
-      value, typ
-    | Float { loc = _; value } ->
-      let typ = Type.Float in
-      let value =
-        const_float
-          (codegen_type typ)
-          value
-      in
-      value, typ
-    | Name { loc; ident } -> codegen_rvalue_name ~loc ~ident ~builder
-    | Binop { loc = _; op = Add; lhs; rhs } ->
-      let lhs, lhs_type = codegen_rvalue lhs in
-      let rhs, rhs_type = codegen_rvalue rhs in
-      if not @@ Type.equal lhs_type rhs_type then
-        failwith "Type error"
-      else if Type.equal lhs_type Type.Int64 then
-        build_add lhs rhs "addtmp" builder, lhs_type
-      else if Type.equal rhs_type Type.Float then
-        build_fadd lhs rhs "faddtmp" builder, lhs_type
-      else
-        assert false
-    | Call { loc = _; callee; args } ->
-      let callee, callee_type = codegen_rvalue callee in
-      let args, arg_types = List.map args ~f:codegen_rvalue |> List.unzip in
-      if not @@ Type.is_fun callee_type then
-        failwith "Type error"
-      else if not @@ [%equal: Type.t list] arg_types (Type.params_exn callee_type) then
-        failwith "Type error"
-      else
-        build_call
-          callee (Array.of_list args)
-          "calltmp" builder,
-        Type.ret_exn callee_type
+    | Pure expr -> codegen_pure expr ~builder
+    | Name { ident; _ } -> codegen_rvalue_name ident ~builder
+    | Binop { op; lhs; rhs; _ } ->
+      let lhs = codegen_rvalue lhs in
+      let rhs = codegen_rvalue rhs in
+      codegen_bop op lhs rhs ~builder
+    | Call { callee; args; _ } ->
+      let callee = codegen_rvalue callee in
+      let args = Array.of_list_map args ~f:codegen_rvalue in
+      build_call callee args "calltmp" builder
   in
 
-  let codegen_lvalue_name ~loc:_ ~ident ~builder:_ =
-    match Env.lookup env ident with
-    | Let _ -> failwith "Not an lvalue"
-    | Var { pointer; typ } -> pointer, typ
+  let codegen_lvalue_name ident ~builder:_ =
+    match Hashtbl.find_exn names ident with
+    | Value _ -> error "Not an lvalue" ident String.sexp_of_t
+    | Pointer p -> return p
   in
 
-  let codegen_lvalue (expr: Control_flow.Expr.t) ~builder =
+  let codegen_lvalue (expr: Expr.t) ~builder =
     match expr with
-    | Int _ | Bool _ | Float _
-    | Binop _ | Call _ -> failwith "Not an lvalue"
-    | Name { loc; ident } -> codegen_lvalue_name ~loc ~ident ~builder
+    | Pure _ | Binop _ | Call _ -> error "Not an lvalue" expr [%sexp_of: Expr.t]
+    | Name { ident; _ } -> codegen_lvalue_name ident ~builder
   in
 
   let codegen_stmt (stmt: Control_flow.Stmt.t) ~builder =
     match stmt with
     | Expr expr ->
-      let _expr, expr_type = codegen_rvalue expr ~builder in
-      if not @@ Type.equal expr_type Type.Void then
-        failwith "Type error"
-    | Let { loc = _; ident; typ; binding } ->
-      let binding, binding_type = codegen_rvalue binding ~builder in
-      let typ = Option.value_map typ ~default:binding_type ~f:Type.of_type_expr in
-      if not @@ Type.equal typ binding_type then
-        failwith "Type error";
-      Env.bind_let env ~ident ~typ ~value:binding
-    | Var { loc = _; ident; typ; binding } ->
-      let binding, binding_type = codegen_rvalue binding ~builder in
-      let typ = Option.value_map typ ~default:binding_type ~f:Type.of_type_expr in
-      if not @@ Type.equal typ binding_type then
-        failwith "Type error";
+      ignore (codegen_rvalue expr ~builder : llvalue)
+    | Let { ident; binding; _ } ->
+      let binding = codegen_pure binding ~builder in
+      Hashtbl.set names ~key:ident ~data:(Value binding)
+    | Var { ident; binding; typ; _ } ->
+      let binding = codegen_rvalue binding ~builder in
       let pointer = build_alloca (codegen_type typ) ident builder in
       ignore (build_store binding pointer builder : llvalue);
-      Env.bind_var env ~ident ~typ ~pointer
-    | Assign { loc = _; dst; src } ->
-      let dst, dst_type = codegen_lvalue dst ~builder in
-      let src, src_type = codegen_rvalue src ~builder in
-      if not @@ Type.equal dst_type src_type then
-        failwith "Type error";
+      Hashtbl.set names ~key:ident ~data:(Pointer pointer)
+    | Assign { dst; src; _ } ->
+      let dst = ok_exn @@ codegen_lvalue dst ~builder in
+      let src = codegen_rvalue src ~builder in
       ignore (build_store src dst builder : llvalue)
   in
 
@@ -163,18 +152,14 @@ let codegen_cf module_ (cf: Control_flow.t) =
     match flow with
     | Exit
     | Return { loc = _; arg = None } ->
-      if not @@ Type.equal !return_type Type.Void then
-        failwith "Type error";
       ignore (build_ret_void builder : llvalue)
     | Return { loc = _; arg = Some arg } ->
-      let arg, arg_type = codegen_rvalue arg ~builder in
-      if not @@ Type.equal arg_type !return_type then
-        failwith "Type error";
+      let arg = codegen_rvalue arg ~builder in
       ignore (build_ret arg builder : llvalue)
     | If { loc = _; cond; iftrue; iffalse } ->
-      let cond, cond_type = codegen_rvalue cond ~builder in
-      if not @@ Type.equal cond_type Type.Bool then
+      if not @@ Type.equal (Expr.typ cond) Type.Bool then
         failwith "Type error";
+      let cond = codegen_rvalue cond ~builder in
       let iftrue = codegen_block iftrue ~func ~name:"iftrue" in
       let iffalse = codegen_block iffalse ~func ~name:"iffalse" in
       ignore (build_cond_br cond iftrue iffalse builder : llvalue)
@@ -205,38 +190,24 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ~finally:(fun () -> exit := None)
   and codegen_decl' decl =
     match decl with
-    | Fun { loc = _; ident; params; ret_type; body } ->
-      let params = List.map params ~f:(fun (ident, typ) -> ident, Type.of_type_expr typ) in
-
-      (* Type *)
-      let param_types = List.map params ~f:snd in
-      let ret_type = Type.of_type_expr ret_type in
-      let typ = Type.fun_ ~params:param_types ~ret:ret_type in
-      return_type := ret_type;
-
+    | Fun { loc = _; ident; params; typ; body } ->
       (* Definition *)
       let func = define_function ident (codegen_type typ) module_ in
-      let body =
-        Env.scoped env ~f:begin fun () ->
-          List.iteri params ~f:begin fun i (ident, typ) ->
-            let value = param func i in
-            set_value_name ident value;
-            Env.bind_let env ~ident ~typ ~value
-          end;
-
-          codegen_block body ~func ~name:"body"
-        end in
+      List.iteri params ~f:begin fun i ident ->
+        let value = param func i in
+        set_value_name ident value;
+        Hashtbl.set names ~key:ident ~data:(Value value);
+      end;
+      let body = codegen_block body ~func ~name:"body" in
 
       (* Branch from entry block to body block *)
-      begin
-        let entry = entry_block func in
-        let entry_builder = builder_at_end (module_context module_) entry in
-        ignore (build_br body entry_builder : llvalue)
-      end;
+      let entry = entry_block func in
+      let entry_builder = builder_at_end (module_context module_) entry in
+      ignore (build_br body entry_builder : llvalue);
 
       (* Check for block terminators *)
       begin
-        let implicit_return = Type.equal ret_type Type.void in
+        let implicit_return = Type.equal (Type.ret_exn typ) Type.void in
         Array.iter (basic_blocks func)
           ~f:begin fun block ->
             match block_terminator block with
@@ -250,9 +221,11 @@ let codegen_cf module_ (cf: Control_flow.t) =
           end
       end;
 
-      (* Bind *)
-      Env.bind_let env ~ident ~typ ~value:func
+      (* Declare *)
+      Hashtbl.set names ~key:ident ~data:(Value func);
   in
   List.iter cf ~f:codegen_decl
 
-let codegen m ast = codegen_cf m @@ Control_flow.of_ast ast
+let codegen m ast =
+  let purity = ok_exn @@ Purity_inference.infer ast in
+  codegen_cf m @@ Control_flow.of_purity purity
