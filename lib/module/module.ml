@@ -9,10 +9,11 @@ type t = llmodule
 let with_new_module name ~f =
   let context = create_context () in
   let module_ = create_module context name in
-  let ret = f module_ in
-  dispose_module module_;
-  dispose_context context;
-  ret
+  protect ~f:(fun () -> f module_)
+    ~finally:begin fun () ->
+      dispose_module module_;
+      dispose_context context;
+    end
 
 let llir_string = string_of_llmodule
 
