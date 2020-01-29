@@ -39,6 +39,7 @@ module type S = sig
         }
     [@@deriving sexp_of, variants]
 
+    val loc : t -> Srcloc.t
     val typ : t -> Type.t
   end
 

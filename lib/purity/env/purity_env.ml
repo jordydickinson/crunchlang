@@ -43,6 +43,4 @@ let bind env ~ident ~typ ~pure =
   bind' env ~ident ~binding:{ typ; pure }
 
 let lookup env ident =
-  match List.hd @@ Hashtbl.find_multi env.bindings ident with
-  | None -> error "Unbound identifier" ident String.sexp_of_t
-  | Some binding -> Ok binding
+  Hashtbl.find_multi env.bindings ident |> List.hd

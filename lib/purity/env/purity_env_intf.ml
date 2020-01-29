@@ -19,7 +19,7 @@ module type S = sig
       @param [pure] If the binding is pure, then [true], else [false]. *)
   val bind : t -> ident:string -> typ:Type.t -> pure:bool -> unit
 
-  (** [lookup env ident] is [Ok binding] if [ident] is bound in [env] and
-      [Error _] otherwise. *)
-  val lookup : t -> string -> binding Or_error.t
+  (** [lookup env ident] is [Some binding] if [ident] is bound in [env] and
+      [None] otherwise. *)
+  val lookup : t -> string -> binding option
 end

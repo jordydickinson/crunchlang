@@ -157,8 +157,6 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let arg = codegen_rvalue arg ~builder in
       ignore (build_ret arg builder : llvalue)
     | If { loc = _; cond; iftrue; iffalse } ->
-      if not @@ Type.equal (Expr.typ cond) Type.Bool then
-        failwith "Type error";
       let cond = codegen_rvalue cond ~builder in
       let iftrue = codegen_block iftrue ~func ~name:"iftrue" in
       let iffalse = codegen_block iffalse ~func ~name:"iffalse" in
@@ -227,5 +225,5 @@ let codegen_cf module_ (cf: Control_flow.t) =
   List.iter cf ~f:codegen_decl
 
 let codegen m ast =
-  let purity = ok_exn @@ Purity_inference.infer ast in
+  let purity = Purity_inference.infer ast in
   codegen_cf m @@ Control_flow.of_purity purity
