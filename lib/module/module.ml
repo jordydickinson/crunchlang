@@ -1,4 +1,4 @@
-open Llvm
+open LLVM
 
 module Env = Module_codegen_env
 
@@ -7,13 +7,8 @@ let () = enable_pretty_stacktrace ()
 type t = llmodule
 
 let with_new_module name ~f =
-  let context = create_context () in
-  let module_ = create_module context name in
-  protect ~f:(fun () -> f module_)
-    ~finally:begin fun () ->
-      dispose_module module_;
-      dispose_context context;
-    end
+  with_new_context (fun ctx ->
+      with_new_module ctx name f)
 
 let llir_string = string_of_llmodule
 
