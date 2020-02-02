@@ -138,7 +138,7 @@ let%expect_test _ =
 (*** Declarations ***)
 
 let%expect_test _ =
-  print_parse_decl "fun nop(): void {}";
+  print_parse_decl "fun nop!(): void {}";
   [%expect {|
-    (Fun (loc (:1:0 :1:18)) (ident nop) (params ())
-     (ret_type (Void (loc (:1:11 :1:15)))) (body (Block ()))) |}]
+    (Fun (loc (:1:0 :1:19)) (ident nop!) (params ())
+     (ret_type (Void (loc (:1:12 :1:16)))) (body (Block ()))) |}]

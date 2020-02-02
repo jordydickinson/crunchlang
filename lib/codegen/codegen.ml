@@ -177,7 +177,10 @@ let codegen_cf module_ (cf: Control_flow.t) =
     match decl with
     | Fun { loc = _; ident; params; typ; body } ->
       (* Definition *)
-      let func = define_function ident (codegen_type typ) module_ in
+      let func = define_function
+          (String.chop_suffix_exn ~suffix:"!" ident)
+          (codegen_type typ)
+          module_ in
       List.iteri params ~f:begin fun i ident ->
         let value = param func i in
         set_value_name ident value;

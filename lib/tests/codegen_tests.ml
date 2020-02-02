@@ -9,7 +9,7 @@ let print_ir s =
   dispose_context ctx
 
 let%expect_test _ =
-  print_ir "fun main(): void {}";
+  print_ir "fun main!(): void {}";
   [%expect {|
     ; ModuleID = 'test'
     source_filename = "test"
@@ -23,7 +23,7 @@ let%expect_test _ =
     } |}]
 
 let%expect_test _ =
-  print_ir "fun main(): void { return; }";
+  print_ir "fun main!(): void { return; }";
   [%expect {|
     ; ModuleID = 'test'
     source_filename = "test"
@@ -38,7 +38,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       return 1 + 2;
     }
   |};
@@ -56,7 +56,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): float {
+    fun main!(): float {
       return 1.0 + 2.0;
     }
   |};
@@ -74,7 +74,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       let x = 1;
       return x;
     }
@@ -93,7 +93,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       let x = 1;
       return x + 2;
     }
@@ -112,7 +112,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       let x = 1;
       let y = 2;
       return x + y;
@@ -132,7 +132,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       var x = 1;
       return x;
     }
@@ -154,7 +154,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       var x = 1;
       x := 2;
       return x;
@@ -178,7 +178,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       var x = 1;
       var y = 2;
       x := x + y;
@@ -210,7 +210,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       var x: int64 = 1;
       x := 2;
       return x;
@@ -234,7 +234,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(x: int64): int64 {
+    fun main!(x: int64): int64 {
       return x + 1;
     }
   |};
@@ -253,12 +253,12 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun add1(x: int64): int64 {
+    fun add1!(x: int64): int64 {
       return x + 1;
     }
 
-    fun main(): int64 {
-      return add1(1);
+    fun main!(): int64 {
+      return add1!(1);
     }
   |};
   [%expect {|
@@ -285,13 +285,13 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun add1(x: int64): int64 {
+    fun add1!(x: int64): int64 {
       return x + 1;
     }
 
-    fun main(): int64 {
+    fun main!(): int64 {
       var x = 1;
-      x := add1(x);
+      x := add1!(x);
       return x;
     }
   |};
@@ -324,7 +324,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): int64 {
+    fun main!(): int64 {
       var is_true = true;
       if is_true {
         return 1;
@@ -357,7 +357,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main(): void {
+    fun main!(): void {
       if true {
         if false {
           return;

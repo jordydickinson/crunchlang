@@ -10,6 +10,7 @@ let exponent_part = ('e' | 'E') ('+' | '-')? digit+
 let float = '-'? digit+ (fractional_part exponent_part? | exponent_part)
 let letter = ['a'-'z' 'A'-'Z']
 let ident = ('_' | letter) ('_' | letter | digit)*
+let bang_ident = ident '!'
 
 rule read =
   parse
@@ -45,6 +46,7 @@ rule read =
 
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }
+  | bang_ident as id { BANG_IDENT id }
   | ident as id { IDENT id }
 
   | eof { EOF }

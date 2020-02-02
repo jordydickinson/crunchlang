@@ -8,6 +8,7 @@
 %token<int64> INT
 %token<float> FLOAT
 %token<string> IDENT
+%token<string> BANG_IDENT
 
 (* Keywords *)
 %token KW_FUN "fun"
@@ -65,7 +66,7 @@ expr_eof:
   ;
 
 decl:
-  | "fun"; ident = IDENT;
+  | "fun"; ident = BANG_IDENT;
     "("; params = separated_list(",", param); ")";
     ret_type = type_annot;
     body = block;
@@ -118,6 +119,7 @@ atom:
   | "true" { Expr.bool ~loc:$loc ~value:true }
   | "false" { Expr.bool ~loc:$loc ~value:false }
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
+  | ident = BANG_IDENT { Expr.name ~loc:$loc ~ident }
   | "("; e = expr; ")" { e }
   ;
 
