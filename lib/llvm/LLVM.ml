@@ -1,13 +1,5 @@
 include Llvm
 
-let with_new_context f =
-  let ctx = create_context () in
-  protect ~f:(fun () -> f ctx) ~finally:(fun () -> dispose_context ctx)
-
-let with_new_module context name f =
-  let m = create_module context name in
-  protect ~f:(fun () -> f m) ~finally:(fun () -> dispose_module m)
-
 let build_load value name builder =
   match classify_type @@ type_of value with
   | TypeKind.Pointer -> build_load value name builder

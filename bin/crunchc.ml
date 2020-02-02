@@ -12,10 +12,10 @@ let () =
   let outfile = "a.out" in
   let tmp_fname, _tmp_fd = Unix.mkstemp (infile ^ ".o") in
   let ast = Driver.parse_file infile in
-  Module.with_new_module infile ~f:begin fun m ->
-    Module.codegen m ast;
-    Module.emit_obj m ~filename:tmp_fname
-  end;
+  let ctx = LLVM.create_context () in
+  let m = LLVM.create_module ctx infile in
+  Codegen.codegen_ast m ast;
+  Codegen.emit_obj m ~filename:tmp_fname;
   protect
     ~f:(fun () -> link tmp_fname ~outfile)
     ~finally:(fun () -> Sys.remove tmp_fname)

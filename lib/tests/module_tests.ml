@@ -1,10 +1,12 @@
 let print_ir s =
+  let open LLVM in
   let ast = Driver.parse_prog_string s in
-  Module.with_new_module "test" ~f:begin fun m ->
-    Module.codegen m ast;
-    Module.llir_string m
-    |> print_string
-  end
+  let ctx = create_context () in
+  let modul = create_module ctx "test" in
+  Codegen.codegen_ast modul ast;
+  print_string @@ string_of_llmodule modul;
+  dispose_module modul;
+  dispose_context ctx
 
 let%expect_test _ =
   print_ir "fun main(): void {}";

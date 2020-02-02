@@ -2,21 +2,6 @@ open LLVM
 
 module Env = Module_codegen_env
 
-let () = enable_pretty_stacktrace ()
-
-type t = llmodule
-
-let with_new_module name ~f =
-  with_new_context (fun ctx ->
-      with_new_module ctx name f)
-
-let llir_string = string_of_llmodule
-
-let write_llir module_ filename =
-  print_module filename module_
-
-let dump_llir = dump_module
-
 let init = lazy (Llvm_all_backends.initialize ())
 
 let get_triple () =
@@ -220,6 +205,6 @@ let codegen_cf module_ (cf: Control_flow.t) =
   in
   List.iter cf ~f:codegen_decl
 
-let codegen m ast =
+let codegen_ast m ast =
   let purity = Purity_inference.infer ast in
   codegen_cf m @@ Control_flow.of_purity purity
