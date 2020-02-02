@@ -212,5 +212,5 @@ let codegen_cf module_ (cf: Control_flow.t) =
   List.iter cf ~f:codegen_decl
 
 let codegen_ast m ast =
-  let purity = Purity_inference.infer ast in
-  codegen_cf m @@ Control_flow.of_purity purity
+  let semantic = Semantic_analysis.analyze_ast ast in
+  codegen_cf m @@ Control_flow.of_semantic semantic

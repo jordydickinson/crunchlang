@@ -1,6 +1,6 @@
-module Bop = Purity.Bop
-module Pure_expr = Purity.Pure_expr
-module Expr = Purity.Expr
+module Bop = Semantic.Bop
+module Pure_expr = Semantic.Pure_expr
+module Expr = Semantic.Expr
 
 module Stmt : sig
 
@@ -68,4 +68,4 @@ end
 
 type t = Decl.t list
 
-val of_purity : Purity.t -> t
+val of_semantic : Semantic.t -> t

@@ -19,10 +19,9 @@ exception Purity_error of {
     loc: Srcloc.t
   }
 
-(** [infer ast] constructs a [Purity.t] tree by inferring the purity of
-    subexpressions.
+(** [analyze_ast ast] constructs a [Semantic.t] by analyzing [ast].
     @raise [Unbound_identifier]
     @raise [Type_error]
     @raise [Arity_mismatch]
     @raise [Purity_error]  *)
-val infer : Ast.t -> Purity.t
+val analyze_ast : Ast.t -> Semantic.t

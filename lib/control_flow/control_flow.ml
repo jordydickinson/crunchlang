@@ -1,6 +1,6 @@
-module Bop = Purity.Bop
-module Pure_expr = Purity.Pure_expr
-module Expr = Purity.Expr
+module Bop = Semantic.Bop
+module Pure_expr = Semantic.Pure_expr
+module Expr = Semantic.Expr
 
 module Stmt = struct
   type t =
@@ -24,7 +24,7 @@ module Stmt = struct
       }
   [@@deriving sexp_of, variants]
 
-  let of_purity_stmt_exn (stmt: Purity.Stmt.t) =
+  let of_semantic_stmt_exn (stmt: Semantic.Stmt.t) =
     match stmt with
     | Expr expr -> Expr expr
     | Let { loc; ident; typ; binding } -> (let_) ~loc ~ident ~typ ~binding
@@ -57,35 +57,35 @@ module Flow = struct
     | Seq of Stmt.t * t
   [@@deriving sexp_of, variants]
 
-  let rec of_purity_stmts (stmts: Purity.Stmt.t list) ~continue =
+  let rec of_semantic_stmts (stmts: Semantic.Stmt.t list) ~continue =
     match stmts with
     | [] -> continue
     | (Expr _ as stmt) :: stmts
     | (Let _ as stmt) :: stmts
     | (Var _ as stmt) :: stmts
     | (Assign _ as stmt) :: stmts ->
-      let stmt = Stmt.of_purity_stmt_exn stmt in
-      Seq (stmt, of_purity_stmts stmts ~continue)
+      let stmt = Stmt.of_semantic_stmt_exn stmt in
+      Seq (stmt, of_semantic_stmts stmts ~continue)
     | If { loc; cond; iftrue; iffalse } :: stmts ->
-      let to_stmts (stmt: Purity.Stmt.t) =
+      let to_stmts (stmt: Semantic.Stmt.t) =
         match stmt with
         | Block stmts -> stmts
         | _ -> [stmt] in
-      let continue = of_purity_stmts stmts ~continue in
+      let continue = of_semantic_stmts stmts ~continue in
       If {
         loc; cond;
-        iftrue = of_purity_stmts (to_stmts iftrue) ~continue;
+        iftrue = of_semantic_stmts (to_stmts iftrue) ~continue;
         iffalse =
           Option.value_map ~default:continue
-            iffalse ~f:(Fn.compose (of_purity_stmts ~continue) to_stmts)
+            iffalse ~f:(Fn.compose (of_semantic_stmts ~continue) to_stmts)
       }
     | Return { loc; arg } :: stmts ->
       if Fn.non List.is_empty stmts
       then failwith "Statements cannot appear after return"
       else Return { loc; arg }
     | Block stmts  :: stmts' ->
-      let continue = of_purity_stmts stmts' ~continue in
-      of_purity_stmts stmts ~continue
+      let continue = of_semantic_stmts stmts' ~continue in
+      of_semantic_stmts stmts ~continue
 
   let loc_exn = function
     | Exit -> invalid_arg "loc_exn Exit"
@@ -110,21 +110,21 @@ module Decl = struct
     | Fun of Fun.t
   [@@deriving sexp_of, variants]
 
-  let rec of_purity_decl (decl: Purity.Decl.t) =
+  let rec of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
     | Fun { loc; ident; params; typ; body = Block stmts } ->
       Fun {
         loc; ident; params; typ;
-        body = Flow.of_purity_stmts stmts ~continue:Exit;
+        body = Flow.of_semantic_stmts stmts ~continue:Exit;
       }
     | Fun { loc; ident; params; typ; body } ->
-      of_purity_decl
-      @@ Purity.Decl.fun_
+      of_semantic_decl
+      @@ Semantic.Decl.fun_
         ~loc ~ident ~params ~typ
-        ~body:(Purity.Stmt.to_block body)
+        ~body:(Semantic.Stmt.to_block body)
 end
 
 type t = Decl.t list
 
-let of_purity (purity: Purity.t) =
-  List.map purity ~f:Decl.of_purity_decl
+let of_semantic (semantic: Semantic.t) =
+  List.map semantic ~f:Decl.of_semantic_decl

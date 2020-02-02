@@ -1,10 +1,10 @@
-module Bop = Purity.Bop
-module Expr = Purity.Expr
-module Pure_expr = Purity.Pure_expr
-module Stmt = Purity.Stmt
-module Decl = Purity.Decl
+module Bop = Semantic.Bop
+module Expr = Semantic.Expr
+module Pure_expr = Semantic.Pure_expr
+module Stmt = Semantic.Stmt
+module Decl = Semantic.Decl
 
-module Env = Purity_env
+module Env = Semantic_env
 
 exception Unbound_identifier of {
     loc: Srcloc.t;
@@ -27,7 +27,7 @@ exception Purity_error of {
     loc: Srcloc.t
   }
 
-let infer (ast: Ast.t): Purity.t =
+let analyze_ast (ast: Ast.t): Semantic.t =
   let env = Env.create () in
   let ret_type = ref Type.void in
 

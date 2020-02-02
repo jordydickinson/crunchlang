@@ -1,7 +1,7 @@
-module Pure_expr = Purity.Pure_expr
-module Expr = Purity.Expr
-module Stmt = Purity.Stmt
-module Decl = Purity.Decl
+module Pure_expr = Semantic.Pure_expr
+module Expr = Semantic.Expr
+module Stmt = Semantic.Stmt
+module Decl = Semantic.Decl
 
 type binding = {
   typ: Type.t;

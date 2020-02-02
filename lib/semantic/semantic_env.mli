@@ -3,7 +3,7 @@ type binding = {
   pure: bool;
 }
 
-(** An environment used during purity inference. *)
+(** An environment used during semantic analysis. *)
 type t
 
 (** [create ()] is a new environment. *)
