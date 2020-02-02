@@ -1,6 +1,6 @@
 open LLVM
 
-module Env = Module_codegen_env
+module Env = Codegen_env
 
 let init = lazy (Llvm_all_backends.initialize ())
 
