@@ -96,7 +96,7 @@ let infer (ast: Ast.t): Purity.t =
       if not @@ Type.equal Type.bool (Expr.typ cond)
       then raise @@ Type_error {
           loc = Expr.loc cond;
-          expected = [Bool];
+          expected = [Type.bool];
           got = Expr.typ cond;
         };
       let iftrue = of_ast_stmt iftrue in
@@ -139,21 +139,21 @@ let infer (ast: Ast.t): Purity.t =
     let rhs = of_ast_expr rhs in
     let op, typ =
       match Expr.typ lhs, Expr.typ rhs with
-      | Int64, Int64 -> Bop.Add, Type.Int64
-      | Float, Float -> Bop.Fadd, Type.Float
+      | Int64, Int64 -> Bop.Add, Type.int64
+      | Float, Float -> Bop.Fadd, Type.float
       | Int64, _ -> raise @@ Type_error {
           loc = Expr.loc rhs;
-          expected = [Int64];
+          expected = [Type.int64];
           got = Expr.typ rhs;
         }
       | Float, _ -> raise @@ Type_error {
           loc = Expr.loc rhs;
-          expected = [Float];
+          expected = [Type.float];
           got = Expr.typ rhs;
         }
       | _ -> raise @@ Type_error {
           loc = Expr.loc lhs;
-          expected = [Int64; Float];
+          expected = [Type.int64; Type.float];
           got = Expr.typ lhs;
         }
     in
