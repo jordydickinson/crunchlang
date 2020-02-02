@@ -12,8 +12,8 @@ let () =
   let outfile = "a.out" in
   let tmp_fname, _tmp_fd = Unix.mkstemp (infile ^ ".o") in
   let ast = Driver.parse_file infile in
-  let ctx = LLVM.create_context () in
-  let m = LLVM.create_module ctx infile in
+  let ctx = Codegen.create_context () in
+  let m = Codegen.create_module ctx infile in
   Codegen.codegen_ast m ast;
   Codegen.emit_obj m ~filename:tmp_fname;
   protect

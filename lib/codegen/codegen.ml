@@ -4,6 +4,12 @@ module Env = Module_codegen_env
 
 let init = lazy (Llvm_all_backends.initialize ())
 
+let global_context = LLVM.global_context
+
+let create_context = LLVM.create_context
+
+let create_module = LLVM.create_module
+
 let get_triple () =
   Lazy.force init;
   Llvm_target.Target.default_triple ()
