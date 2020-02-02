@@ -114,6 +114,12 @@ end
 
 module Decl : sig
   type t = private
+    | Let of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: Pure_expr.t;
+      }
     | Fun of {
         loc: Srcloc.t;
         ident: string;

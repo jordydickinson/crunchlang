@@ -165,6 +165,12 @@ end
 
 module Decl = struct
   type t =
+    | Let of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: Pure_expr.t;
+      }
     | Fun of {
         loc: Srcloc.t;
         ident: string;
@@ -175,6 +181,7 @@ module Decl = struct
   [@@deriving sexp_of, variants]
 
   let typ = function
+    | Let { typ; _ } -> typ
     | Fun { typ; _ } -> typ
 end
 

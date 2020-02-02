@@ -32,9 +32,14 @@ let analyze_ast (ast: Ast.t): Semantic.t =
   let ret_type = ref Type.void in
 
   let rec of_ast_decl (decl: Ast.Decl.t): Decl.t =
-    let ident, decl =
-      match decl with
-      | Fun { loc; ident; params; ret_type = ret_type'; body } ->
+    match decl with
+    | Let { loc; ident; typ; binding } ->
+      let typ = Type.of_type_expr typ in
+      let binding = pure_of_ast_expr binding in
+      Env.bind env ~ident ~typ ~pure:true;
+      Decl.(let_) ~loc ~ident ~typ ~binding
+    | Fun { loc; ident; params; ret_type = ret_type'; body } ->
+      let typ, params, body =
         Env.scoped env ~f:begin fun () ->
           let params, param_types =
             List.map params ~f:begin fun (ident, typ) ->
@@ -47,11 +52,10 @@ let analyze_ast (ast: Ast.t): Semantic.t =
           ret_type := ret_type';
           let typ = Type.fun_ ~params:param_types ~ret:ret_type' in
           let body = of_ast_stmt body in
-          ident, Decl.fun_ ~loc ~ident ~params ~typ ~body
-        end
-    in
-    Env.bind env ~ident ~typ:(Decl.typ decl) ~pure:false;
-    decl
+          typ, params, body
+        end in
+      Env.bind env ~ident ~typ ~pure:false;
+      Decl.fun_ ~loc ~ident ~params ~typ ~body
 
   and of_ast_stmt (stmt: Ast.Stmt.t): Stmt.t =
     match stmt with

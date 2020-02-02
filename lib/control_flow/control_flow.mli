@@ -50,19 +50,20 @@ module Flow : sig
 end
 
 module Decl : sig
-  module Fun : sig
-    type t = private {
-      loc: Srcloc.t;
-      ident: string;
-      params: string list;
-      typ: Type.t;
-      body: Flow.t;
-    }
-    [@@deriving sexp_of, fields]
-  end
-
   type t = private
-    | Fun of Fun.t
+    | Let of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: Pure_expr.t;
+      }
+    | Fun of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        body: Flow.t;
+      }
   [@@deriving sexp_of, variants]
 end
 

@@ -170,11 +170,42 @@ let codegen_cf module_ (cf: Control_flow.t) =
         end
   in
 
+  let ctor_type = codegen_type (Type.fun_ ~params:[] ~ret:Type.void) in
+
+  let ctors = Stack.create () in
+
+  let add_ctor ctor = Stack.push ctors ctor in
+
+  let finish_ctors () =
+    if Stack.is_empty ctors then ();
+    let init_ctors_func = define_function "init.ctors" ctor_type module_ in
+    let init_entry = entry_block init_ctors_func in
+    let builder = builder_at_end (module_context module_) init_entry in
+    Stack.until_empty ctors
+      (fun ctor -> ignore (build_call ctor [||] "" builder : llvalue));
+    ignore (build_ret_void builder : llvalue);
+    let global_ctors = define_global "llvm.global_ctors"
+        (const_array (pointer_type ctor_type) [|init_ctors_func|])
+        module_ in
+    set_linkage Linkage.Appending global_ctors
+  in
+
   let rec codegen_decl (decl: Control_flow.Decl.t) =
     protect ~f:(fun () -> codegen_decl' decl)
       ~finally:(fun () -> exit := None)
   and codegen_decl' decl =
     match decl with
+    | Let { loc = _; ident; typ; binding } ->
+      let typ = codegen_type typ in
+      let global = define_global ident (undef typ) module_ in
+      let ctor_func = define_function ("init.ctors." ^ ident) ctor_type module_ in
+      let ctor_entry = entry_block ctor_func in
+      let ctor_builder = builder_at_end (module_context module_) ctor_entry in
+      let binding = codegen_pure binding ~builder:ctor_builder in
+      ignore (build_store binding global ctor_builder : llvalue);
+      ignore (build_ret_void ctor_builder : llvalue);
+      add_ctor ctor_func;
+      Hashtbl.set names ~key:ident ~data:(Pointer global);
     | Fun { loc = _; ident; params; typ; body } ->
       (* Definition *)
       let func = define_function
@@ -212,7 +243,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
       (* Declare *)
       Hashtbl.set names ~key:ident ~data:(Value func);
   in
-  List.iter cf ~f:codegen_decl
+  List.iter cf ~f:codegen_decl;
+  finish_ctors ()
 
 let codegen_ast m ast =
   let semantic = Semantic_analysis.analyze_ast ast in

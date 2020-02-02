@@ -95,23 +95,26 @@ module Flow = struct
 end
 
 module Decl = struct
-  module Fun = struct
-    type t = {
-      loc: Srcloc.t;
-      ident: string;
-      params: string list;
-      typ: Type.t;
-      body: Flow.t;
-    }
-    [@@deriving sexp_of, fields]
-  end
-
   type t =
-    | Fun of Fun.t
+    | Let of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: Pure_expr.t;
+      }
+    | Fun of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        body: Flow.t;
+      }
   [@@deriving sexp_of, variants]
 
   let rec of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
+    | Let { loc; ident; typ; binding } ->
+      Let { loc; ident; typ; binding }
     | Fun { loc; ident; params; typ; body = Block stmts } ->
       Fun {
         loc; ident; params; typ;
