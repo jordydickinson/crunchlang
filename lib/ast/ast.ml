@@ -37,6 +37,11 @@ module Expr = struct
         lhs: t;
         rhs: t;
       }
+    | Assign of {
+        loc: Srcloc.t;
+        dst: t;
+        src: t;
+      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -60,6 +65,7 @@ module Expr = struct
     | Name { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
+    | Assign { loc; _ }
     | Let_in { loc; _ } -> loc
 end
 
@@ -84,11 +90,6 @@ module Stmt = struct
         ident: string;
         typ: Type_expr.t option [@sexp.option];
         binding: Expr.t;
-      }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: Expr.t;
-        src: Expr.t;
       }
     | If of {
         loc: Srcloc.t;

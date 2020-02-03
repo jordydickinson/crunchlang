@@ -87,16 +87,6 @@ let analyze_ast (ast: Ast.t): Semantic.t =
         };
       Env.bind env ~ident ~typ ~pure:false;
       Stmt.var ~loc ~ident ~typ ~binding
-    | Assign { loc; dst; src } ->
-      let dst = of_ast_expr dst in
-      let src = of_ast_expr src in
-      if not @@ Type.equal (Expr.typ dst) (Expr.typ src)
-      then raise @@ Type_error {
-          loc = Expr.loc src;
-          expected = [Expr.typ dst];
-          got = Expr.typ src;
-        };
-      Stmt.assign ~loc ~dst ~src
     | If { loc; cond; iftrue; iffalse } ->
       let cond = of_ast_expr cond in
       if not @@ Type.equal Type.bool (Expr.typ cond)
@@ -126,6 +116,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Float { loc; value } -> Expr.float ~loc ~value
     | Name { loc; ident } -> of_ast_name ~loc ~ident
     | Binop { loc; op; lhs; rhs } -> of_ast_binop ~loc ~op ~lhs ~rhs
+    | Assign { loc; dst; src } -> of_ast_assign ~loc ~dst ~src
     | Call { loc; callee; args } -> of_ast_call ~loc ~callee ~args
     | Let_in { loc; ident; typ; binding; body } -> of_ast_let_in ~loc ~ident ~typ ~binding ~body
 
@@ -162,6 +153,17 @@ let analyze_ast (ast: Ast.t): Semantic.t =
         }
     in
     Expr.binop ~loc ~op ~lhs ~rhs ~typ ~pure
+
+  and of_ast_assign ~loc ~dst ~src =
+    let dst = of_ast_expr dst in
+    let src = of_ast_expr src in
+    if not @@ Type.equal (Expr.typ dst) (Expr.typ src)
+    then raise @@ Type_error {
+        loc = Expr.loc src;
+        expected = [Expr.typ dst];
+        got = Expr.typ src;
+      };
+    Expr.assign ~loc ~dst ~src
 
   and of_ast_call ~loc ~callee ~args =
     let callee = of_ast_expr callee in

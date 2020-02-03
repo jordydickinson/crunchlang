@@ -28,7 +28,6 @@ module Stmt = struct
     | Expr expr -> Expr expr
     | Let { loc; ident; typ; binding } -> (let_) ~loc ~ident ~typ ~binding
     | Var { loc; ident; typ; binding } -> var ~loc ~ident ~typ ~binding
-    | Assign { loc; dst; src } -> assign ~loc ~dst ~src
     | Block _
     | If _
     | Return _ -> invalid_arg "Cannot be converted"
@@ -61,8 +60,7 @@ module Flow = struct
     | [] -> continue
     | (Expr _ as stmt) :: stmts
     | (Let _ as stmt) :: stmts
-    | (Var _ as stmt) :: stmts
-    | (Assign _ as stmt) :: stmts ->
+    | (Var _ as stmt) :: stmts ->
       let stmt = Stmt.of_semantic_stmt_exn stmt in
       Seq (stmt, of_semantic_stmts stmts ~continue)
     | If { loc; cond; iftrue; iffalse } :: stmts ->

@@ -33,6 +33,11 @@ module Expr = struct
         typ: Type.t;
         pure: bool;
       }
+    | Assign of {
+        loc: Srcloc.t;
+        dst: t;
+        src: t;
+      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -56,6 +61,7 @@ module Expr = struct
     | Float { loc; _ }
     | Name { loc; _ }
     | Binop { loc; _ }
+    | Assign { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ }-> loc
 
@@ -63,6 +69,7 @@ module Expr = struct
     | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
+    | Assign _ -> Type.void
     | Name { typ; _ }
     | Binop { typ; _ }
     | Call { typ; _ }
@@ -72,6 +79,7 @@ module Expr = struct
     | Int _
     | Bool _
     | Float _ -> true
+    | Assign _ -> false
     | Name { pure; _ }
     | Binop { pure; _ }
     | Call { pure; _ }
@@ -93,11 +101,6 @@ module Stmt = struct
         ident: string;
         typ: Type.t;
         binding: Expr.t;
-      }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: Expr.t;
-        src: Expr.t;
       }
     | If of {
         loc: Srcloc.t;

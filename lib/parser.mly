@@ -81,14 +81,13 @@ param:
   ;
 
 stmt:
-  | e = call; ";" { Stmt.expr e }
+  | e = expr; ";" { Stmt.expr e }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
   | "let"; ident = IDENT; typ = type_annot?; "="; body = block
     { Stmt.let_block ~loc:$loc ~ident ~typ ~body }
   | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.var ~loc:$loc ~ident ~typ ~binding }
-  | dst = expr; ":="; src = expr; ";" { Stmt.assign ~loc:$loc ~src ~dst }
   | if_ = if_stmt { if_ }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
   ;
@@ -111,6 +110,8 @@ expr:
   | e = infix { e }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; "in"; body = expr
     { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
+  | dst = infix; ":="; src = expr
+    { Expr.assign ~loc:$loc ~dst ~src }
   ;
 
 infix:

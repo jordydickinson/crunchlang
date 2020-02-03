@@ -37,6 +37,11 @@ module Expr : sig
         lhs: t;
         rhs: t;
       }
+    | Assign of {
+        loc: Srcloc.t;
+        dst: t;
+        src: t;
+      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -77,11 +82,6 @@ module Stmt : sig
         ident: string;
         typ: Type_expr.t option [@sexp.option];
         binding: Expr.t;
-      }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: Expr.t;
-        src: Expr.t;
       }
     | If of {
         loc: Srcloc.t;

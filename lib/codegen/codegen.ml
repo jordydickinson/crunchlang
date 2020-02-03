@@ -48,6 +48,18 @@ let codegen_cf module_ (cf: Control_flow.t) =
       @@ Array.of_list_map params ~f:codegen_type
   in
 
+  let codegen_lvalue_name ident =
+    match Hashtbl.find_exn names ident with
+    | Pointer p -> p
+    | Value _ -> assert false
+  in
+
+  let codegen_lvalue (expr: Expr.t) =
+    match expr with
+    | Name { ident; _ } -> codegen_lvalue_name ident
+    | _ -> assert false
+  in
+
   let codegen_rvalue_name ident ~builder =
     match Hashtbl.find_exn names ident with
     | Value v -> v
@@ -76,6 +88,10 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let lhs = codegen_rvalue lhs in
       let rhs = codegen_rvalue rhs in
       codegen_bop op lhs rhs ~builder
+    | Assign { dst; src; _ } ->
+      let dst = codegen_lvalue dst in
+      let src = codegen_rvalue src in
+      build_store src dst builder
     | Call { callee; args; _ } ->
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in
@@ -86,18 +102,6 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_store binding pointer builder : llvalue);
       Hashtbl.set names ~key:ident ~data:(Pointer pointer);
       codegen_rvalue body
-  in
-
-  let codegen_lvalue_name ident =
-    match Hashtbl.find_exn names ident with
-    | Pointer p -> p
-    | Value _ -> assert false
-  in
-
-  let codegen_lvalue (expr: Expr.t) =
-    match expr with
-    | Name { ident; _ } -> codegen_lvalue_name ident
-    | _ -> assert false
   in
 
   let codegen_stmt (stmt: Control_flow.Stmt.t) ~builder =
