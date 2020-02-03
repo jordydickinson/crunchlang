@@ -30,7 +30,6 @@ module Expr : sig
         lhs: t;
         rhs: t;
         typ: Type.t;
-        pure: bool;
       }
     | Assign of {
         loc: Srcloc.t;
@@ -42,7 +41,6 @@ module Expr : sig
         callee: t;
         args: t list;
         typ: Type.t;
-        pure: bool;
       }
     | Let_in of {
         loc: Srcloc.t;
@@ -50,13 +48,21 @@ module Expr : sig
         typ: Type.t;
         binding: t;
         body: t;
-        pure: bool;
+      }
+    | Var_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: t;
+        body: t;
       }
   [@@deriving sexp_of, variants]
 
   val loc : t -> Srcloc.t
 
   val typ : t -> Type.t
+
+  val impurities : t -> String.Set.t
 
   val is_pure : t -> bool
 end

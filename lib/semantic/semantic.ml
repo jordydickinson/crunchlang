@@ -1,3 +1,7 @@
+exception Purity_error of {
+    loc: Srcloc.t
+  }
+
 module Bop = struct
   type t =
     | Add
@@ -31,7 +35,6 @@ module Expr = struct
         lhs: t;
         rhs: t;
         typ: Type.t;
-        pure: bool;
       }
     | Assign of {
         loc: Srcloc.t;
@@ -43,7 +46,6 @@ module Expr = struct
         callee: t;
         args: t list;
         typ: Type.t;
-        pure: bool;
       }
     | Let_in of {
         loc: Srcloc.t;
@@ -51,7 +53,13 @@ module Expr = struct
         typ: Type.t;
         binding: t;
         body: t;
-        pure: bool;
+      }
+    | Var_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: t;
+        body: t;
       }
   [@@deriving sexp_of, variants]
 
@@ -63,7 +71,8 @@ module Expr = struct
     | Binop { loc; _ }
     | Assign { loc; _ }
     | Call { loc; _ }
-    | Let_in { loc; _ }-> loc
+    | Let_in { loc; _ }
+    | Var_in { loc; _ } -> loc
 
   let typ = function
     | Int _ -> Type.int64
@@ -73,17 +82,27 @@ module Expr = struct
     | Name { typ; _ }
     | Binop { typ; _ }
     | Call { typ; _ }
-    | Let_in { typ; _ }-> typ
+    | Let_in { typ; _ }
+    | Var_in { typ; _ } -> typ
 
-  let is_pure = function
-    | Int _
-    | Bool _
-    | Float _ -> true
-    | Assign _ -> false
-    | Name { pure; _ }
-    | Binop { pure; _ }
-    | Call { pure; _ }
-    | Let_in { pure; _ } -> pure
+  let rec impurities = function
+    | Int _ | Bool _ | Float _ -> String.Set.empty
+    | Name { ident; pure; _ } ->
+      if pure then String.Set.empty else String.Set.singleton ident
+    | Binop { lhs; rhs; _ } -> Set.union (impurities lhs) (impurities rhs)
+    | Assign { dst; src; _ } -> Set.union (impurities dst) (impurities src)
+    | Call { callee; args; _ } ->
+      String.Set.union_list (impurities callee :: List.map ~f:impurities args)
+    | Let_in { body; _ } -> impurities body
+    | Var_in { ident; binding; body; _ } ->
+      Set.remove (Set.union (impurities binding) (impurities body)) ident
+
+  let is_pure expr = Set.is_empty @@ impurities expr
+
+  let let_in ~loc:loc' ~ident ~typ ~binding ~body =
+    if not @@ is_pure binding
+    then raise @@ Purity_error { loc = loc binding };
+    (let_in) ~loc:loc' ~ident ~typ ~binding ~body
 end
 
 module Stmt = struct
@@ -117,6 +136,11 @@ module Stmt = struct
   let to_block = function
     | Block _ as stmt -> stmt
     | stmt -> Block [stmt]
+
+  let let_ ~loc ~ident ~typ ~binding =
+    if Fn.non Expr.is_pure binding
+    then raise @@ Purity_error { loc = Expr.loc binding };
+    (let_) ~loc ~ident ~typ ~binding
 end
 
 module Decl = struct
@@ -139,6 +163,11 @@ module Decl = struct
   let typ = function
     | Let { typ; _ } -> typ
     | Fun { typ; _ } -> typ
+
+  let let_ ~loc ~ident ~typ ~binding =
+    if Fn.non Expr.is_pure binding
+    then raise @@ Purity_error { loc = Expr.loc binding };
+    (let_) ~loc ~ident ~typ ~binding
 end
 
 type t = Decl.t list

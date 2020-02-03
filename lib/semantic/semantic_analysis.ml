@@ -22,10 +22,6 @@ exception Arity_mismatch of {
     got: int;
   }
 
-exception Purity_error of {
-    loc: Srcloc.t
-  }
-
 let analyze_ast (ast: Ast.t): Semantic.t =
   let env = Env.create () in
   let ret_type = ref Type.void in
@@ -35,7 +31,6 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Let { loc; ident; typ; binding } ->
       let typ = Type.of_type_expr typ in
       let binding = of_ast_expr binding in
-      if Fn.non Expr.is_pure binding then raise @@ Purity_error { loc };
       Env.bind env ~ident ~typ ~pure:true;
       Decl.(let_) ~loc ~ident ~typ ~binding
     | Fun { loc; ident; params; ret_type = ret_type'; body } ->
@@ -63,7 +58,6 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Block stmts -> Stmt.block @@ List.map stmts ~f:of_ast_stmt
     | Let { loc; ident; typ; binding } ->
       let binding = of_ast_expr binding in
-      if Fn.non Expr.is_pure binding then raise @@ Purity_error { loc };
       let binding_type = Expr.typ binding in
       let typ = Option.value_map typ ~default:binding_type ~f:Type.of_type_expr in
       if not @@ Type.equal typ binding_type
@@ -119,6 +113,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Assign { loc; dst; src } -> of_ast_assign ~loc ~dst ~src
     | Call { loc; callee; args } -> of_ast_call ~loc ~callee ~args
     | Let_in { loc; ident; typ; binding; body } -> of_ast_let_in ~loc ~ident ~typ ~binding ~body
+    | Var_in { loc; ident; typ; binding; body } -> of_ast_var_in ~loc ~ident ~typ ~binding ~body
 
   and of_ast_name ~loc ~ident =
     match Env.lookup env ident with
@@ -131,7 +126,6 @@ let analyze_ast (ast: Ast.t): Semantic.t =
   and of_ast_binop ~loc ~op:Ast.Expr.Bop.Add ~lhs ~rhs =
     let lhs = of_ast_expr lhs in
     let rhs = of_ast_expr rhs in
-    let pure = Expr.is_pure lhs && Expr.is_pure rhs in
     let op, typ =
       match Expr.typ lhs, Expr.typ rhs with
       | Int64, Int64 -> Bop.Add, Type.int64
@@ -152,7 +146,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
           got = Expr.typ lhs;
         }
     in
-    Expr.binop ~loc ~op ~lhs ~rhs ~typ ~pure
+    Expr.binop ~loc ~op ~lhs ~rhs ~typ
 
   and of_ast_assign ~loc ~dst ~src =
     let dst = of_ast_expr dst in
@@ -171,7 +165,6 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     let args = List.map args ~f:of_ast_expr in
     let arg_types = List.map args ~f:Expr.typ in
     let param_types = Type.params_exn callee_type in
-    let pure = Expr.is_pure callee && List.for_all args ~f:Expr.is_pure in
     if List.length param_types <> List.length arg_types
     then raise @@ Arity_mismatch {
         loc;
@@ -186,7 +179,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
           got = Expr.typ arg;
         };
     end;
-    Expr.call ~loc ~callee ~args ~typ:(Type.ret_exn callee_type) ~pure
+    Expr.call ~loc ~callee ~args ~typ:(Type.ret_exn callee_type)
 
   and of_ast_let_in ~loc ~ident ~typ ~binding ~body =
     let binding = of_ast_expr binding in
@@ -197,10 +190,26 @@ let analyze_ast (ast: Ast.t): Semantic.t =
         expected = [binding_type];
         got = Expr.typ binding;
       };
-    let body = of_ast_expr body in
+    let body = Env.scoped env ~f:(fun () ->
+        Env.bind env ~ident ~typ:binding_type ~pure:true;
+        of_ast_expr body) in
     let typ = Expr.typ body in
-    let pure = Expr.is_pure body in
-    Expr.(let_in) ~loc ~ident ~typ ~binding ~body ~pure
+    Expr.(let_in) ~loc ~ident ~typ ~binding ~body
+
+  and of_ast_var_in ~loc ~ident ~typ ~binding ~body =
+    let binding = of_ast_expr binding in
+    let binding_type = Option.value_map typ ~f:Type.of_type_expr ~default:(Expr.typ binding) in
+    if not @@ Type.equal binding_type (Expr.typ binding)
+    then raise @@ Type_error {
+        loc = Expr.loc binding;
+        expected = [binding_type];
+        got = Expr.typ binding;
+      };
+    let body = Env.scoped env ~f:(fun () ->
+        Env.bind env ~ident ~typ:binding_type ~pure:false;
+        of_ast_expr body) in
+    let typ = Expr.typ body in
+    Expr.var_in ~loc ~ident ~typ ~binding ~body
 
   in
   List.map ast ~f:of_ast_decl

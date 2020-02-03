@@ -43,3 +43,8 @@ let bind env ~ident ~typ ~pure =
 
 let lookup env ident =
   Hashtbl.find_multi env.bindings ident |> List.hd
+
+let is_pure env ident =
+  match Hashtbl.find_multi env.bindings ident with
+  | [] -> None
+  | { pure; _ } :: _ -> Some pure

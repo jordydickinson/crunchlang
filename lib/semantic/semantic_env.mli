@@ -21,3 +21,7 @@ val bind : t -> ident:string -> typ:Type.t -> pure:bool -> unit
 (** [lookup env ident] is [Some binding] if [ident] is bound in [env] and
     [None] otherwise. *)
 val lookup : t -> string -> binding option
+
+(** [is_pure env ident] is [Some true] if [ident] is pure, [Some false] if
+    impure, and [None] if [ident] is not bound. *)
+val is_pure : t -> string -> bool option

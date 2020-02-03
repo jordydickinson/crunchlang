@@ -15,10 +15,6 @@ exception Arity_mismatch of {
     got: int;
   }
 
-exception Purity_error of {
-    loc: Srcloc.t
-  }
-
 (** [analyze_ast ast] constructs a [Semantic.t] by analyzing [ast].
     @raise [Unbound_identifier]
     @raise [Type_error]
