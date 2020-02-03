@@ -1,4 +1,3 @@
-module Pure_expr = Semantic.Pure_expr
 module Expr = Semantic.Expr
 module Stmt = Semantic.Stmt
 module Decl = Semantic.Decl

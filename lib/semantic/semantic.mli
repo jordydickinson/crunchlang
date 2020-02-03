@@ -4,7 +4,7 @@ module Bop : sig
     | Fadd
 end
 
-module Pure_expr : sig
+module Expr : sig
   type t = private
     | Int of {
         loc: Srcloc.t;
@@ -22,33 +22,7 @@ module Pure_expr : sig
         loc: Srcloc.t;
         ident: string;
         typ: Type.t;
-      }
-    | Binop of {
-        loc: Srcloc.t;
-        op: Bop.t;
-        lhs: t;
-        rhs: t;
-        typ: Type.t
-      }
-    | Call of {
-        loc: Srcloc.t;
-        callee: t;
-        args: t list;
-        typ: Type.t;
-      }
-  [@@deriving sexp_of, variants]
-
-  val loc : t -> Srcloc.t
-  val typ : t -> Type.t
-end
-
-module Expr : sig
-  type t = private
-    | Pure of Pure_expr.t
-    | Name of {
-        loc: Srcloc.t;
-        ident: string;
-        typ: Type.t;
+        pure: bool;
       }
     | Binop of {
         loc: Srcloc.t;
@@ -56,12 +30,14 @@ module Expr : sig
         lhs: t;
         rhs: t;
         typ: Type.t;
+        pure: bool;
       }
     | Call of {
         loc: Srcloc.t;
         callee: t;
         args: t list;
         typ: Type.t;
+        pure: bool;
       }
   [@@deriving sexp_of, variants]
 
@@ -70,10 +46,6 @@ module Expr : sig
   val typ : t -> Type.t
 
   val is_pure : t -> bool
-
-  val pure_expr_exn : t -> Pure_expr.t
-
-  val lift_pure_exprs : t -> t
 end
 
 module Stmt : sig
@@ -84,7 +56,7 @@ module Stmt : sig
         loc: Srcloc.t;
         ident: string;
         typ: Type.t;
-        binding: Pure_expr.t;
+        binding: Expr.t;
       }
     | Var of {
         loc: Srcloc.t;
@@ -118,7 +90,7 @@ module Decl : sig
         loc: Srcloc.t;
         ident: string;
         typ: Type.t;
-        binding: Pure_expr.t;
+        binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;

@@ -32,10 +32,7 @@ type binding =
   | Pointer of llvalue
 
 let codegen_cf module_ (cf: Control_flow.t) =
-  let open Or_error.Let_syntax in
-
   let module Bop = Control_flow.Bop in
-  let module Pure_expr = Control_flow.Pure_expr in
   let module Expr = Control_flow.Expr in
 
   let names = String.Table.create () in
@@ -63,34 +60,17 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Fadd -> build_fadd lhs rhs "addtmp" builder
   in
 
-  let rec codegen_pure (expr: Pure_expr.t) ~builder =
-    let codegen_pure = codegen_pure ~builder in
-    let typ = Pure_expr.typ expr in
-    match expr with
-    | Int { value; _ } ->
-      const_of_int64 (codegen_type typ) value
-        true (* Signed *)
-    | Bool { value; _ } ->
-      const_int (codegen_type typ)
-        (if value then 1 else 0)
-    | Float { value; _ } ->
-      const_float (codegen_type typ) value
-    | Name { ident; _ } ->
-      codegen_rvalue_name ident ~builder
-    | Binop { op; lhs; rhs; _ } ->
-      let lhs = codegen_pure lhs in
-      let rhs = codegen_pure rhs in
-      codegen_bop op lhs rhs ~builder
-    | Call { callee; args; _ } ->
-      let callee = codegen_pure callee in
-      let args = Array.of_list_map args ~f:codegen_pure in
-      build_call callee args "calltmp" builder
-  in
-
   let rec codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
     match expr with
-    | Pure expr -> codegen_pure expr ~builder
+    | Int { value; _ } ->
+      const_of_int64 (codegen_type @@ Expr.typ expr) value
+        true (* Signed *)
+    | Bool { value; _ } ->
+      const_int (codegen_type @@ Expr.typ expr)
+        (if value then 1 else 0)
+    | Float { value; _ } ->
+      const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
     | Binop { op; lhs; rhs; _ } ->
       let lhs = codegen_rvalue lhs in
@@ -102,16 +82,16 @@ let codegen_cf module_ (cf: Control_flow.t) =
       build_call callee args "calltmp" builder
   in
 
-  let codegen_lvalue_name ident ~builder:_ =
+  let codegen_lvalue_name ident =
     match Hashtbl.find_exn names ident with
-    | Value _ -> error "Not an lvalue" ident String.sexp_of_t
-    | Pointer p -> return p
+    | Pointer p -> p
+    | Value _ -> assert false
   in
 
-  let codegen_lvalue (expr: Expr.t) ~builder =
+  let codegen_lvalue (expr: Expr.t) =
     match expr with
-    | Pure _ | Binop _ | Call _ -> error "Not an lvalue" expr [%sexp_of: Expr.t]
-    | Name { ident; _ } -> codegen_lvalue_name ident ~builder
+    | Name { ident; _ } -> codegen_lvalue_name ident
+    | _ -> assert false
   in
 
   let codegen_stmt (stmt: Control_flow.Stmt.t) ~builder =
@@ -119,7 +99,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Expr expr ->
       ignore (codegen_rvalue expr ~builder : llvalue)
     | Let { ident; binding; _ } ->
-      let binding = codegen_pure binding ~builder in
+      let binding = codegen_rvalue binding ~builder in
       Hashtbl.set names ~key:ident ~data:(Value binding)
     | Var { ident; binding; typ; _ } ->
       let binding = codegen_rvalue binding ~builder in
@@ -127,7 +107,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_store binding pointer builder : llvalue);
       Hashtbl.set names ~key:ident ~data:(Pointer pointer)
     | Assign { dst; src; _ } ->
-      let dst = ok_exn @@ codegen_lvalue dst ~builder in
+      let dst = codegen_lvalue dst in
       let src = codegen_rvalue src ~builder in
       ignore (build_store src dst builder : llvalue)
   in
@@ -201,7 +181,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let ctor_func = define_function ("init.ctors." ^ ident) ctor_type module_ in
       let ctor_entry = entry_block ctor_func in
       let ctor_builder = builder_at_end (module_context module_) ctor_entry in
-      let binding = codegen_pure binding ~builder:ctor_builder in
+      let binding = codegen_rvalue binding ~builder:ctor_builder in
       ignore (build_store binding global ctor_builder : llvalue);
       ignore (build_ret_void ctor_builder : llvalue);
       add_ctor ctor_func;

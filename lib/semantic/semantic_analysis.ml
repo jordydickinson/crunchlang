@@ -1,6 +1,5 @@
 module Bop = Semantic.Bop
 module Expr = Semantic.Expr
-module Pure_expr = Semantic.Pure_expr
 module Stmt = Semantic.Stmt
 module Decl = Semantic.Decl
 
@@ -35,7 +34,8 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     match decl with
     | Let { loc; ident; typ; binding } ->
       let typ = Type.of_type_expr typ in
-      let binding = pure_of_ast_expr binding in
+      let binding = of_ast_expr binding in
+      if Fn.non Expr.is_pure binding then raise @@ Purity_error { loc };
       Env.bind env ~ident ~typ ~pure:true;
       Decl.(let_) ~loc ~ident ~typ ~binding
     | Fun { loc; ident; params; ret_type = ret_type'; body } ->
@@ -62,17 +62,19 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Expr expr -> Stmt.expr @@ of_ast_expr expr
     | Block stmts -> Stmt.block @@ List.map stmts ~f:of_ast_stmt
     | Let { loc; ident; typ; binding } ->
-      let binding = pure_of_ast_expr binding in
-      let binding_type = Pure_expr.typ binding in
+      let binding = of_ast_expr binding in
+      if Fn.non Expr.is_pure binding then raise @@ Purity_error { loc };
+      let binding_type = Expr.typ binding in
       let typ = Option.value_map typ ~default:binding_type ~f:Type.of_type_expr in
       if not @@ Type.equal typ binding_type
       then raise @@ Type_error {
-          loc = Pure_expr.loc binding;
+          loc = Expr.loc binding;
           expected = [typ];
           got = binding_type;
         };
       Env.bind env ~ident ~typ ~pure:true;
       Stmt.(let_) ~loc ~ident ~typ ~binding
+    | Let_block { loc = _; ident = _; typ = _; body = _ } -> assert false
     | Var { loc; ident; typ; binding } ->
       let binding = of_ast_expr binding in
       let binding_type = Expr.typ binding in
@@ -118,14 +120,10 @@ let analyze_ast (ast: Ast.t): Semantic.t =
       Stmt.return ~loc ~arg
 
   and of_ast_expr (expr: Ast.Expr.t): Expr.t =
-    let expr = of_ast_expr' expr in
-    Expr.lift_pure_exprs expr
-
-  and of_ast_expr' (expr: Ast.Expr.t): Expr.t =
     match expr with
-    | Int { loc; value } -> Expr.pure @@ Pure_expr.int ~loc ~value
-    | Bool { loc; value } -> Expr.pure @@ Pure_expr.bool ~loc ~value
-    | Float { loc; value } -> Expr.pure @@ Pure_expr.float ~loc ~value
+    | Int { loc; value } -> Expr.int ~loc ~value
+    | Bool { loc; value } -> Expr.bool ~loc ~value
+    | Float { loc; value } -> Expr.float ~loc ~value
     | Name { loc; ident } -> of_ast_name ~loc ~ident
     | Binop { loc; op; lhs; rhs } -> of_ast_binop ~loc ~op ~lhs ~rhs
     | Call { loc; callee; args } -> of_ast_call ~loc ~callee ~args
@@ -134,13 +132,14 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     match Env.lookup env ident with
     | None -> raise @@ Unbound_identifier { loc; ident }
     | Some { typ; pure = true } ->
-      Expr.pure @@ Pure_expr.name ~loc ~ident ~typ
+      Expr.name ~loc ~ident ~typ ~pure:true
     | Some { typ; pure = false } ->
-      Expr.name ~loc ~ident ~typ
+      Expr.name ~loc ~ident ~typ ~pure:false
 
   and of_ast_binop ~loc ~op:Ast.Expr.Bop.Add ~lhs ~rhs =
     let lhs = of_ast_expr lhs in
     let rhs = of_ast_expr rhs in
+    let pure = Expr.is_pure lhs && Expr.is_pure rhs in
     let op, typ =
       match Expr.typ lhs, Expr.typ rhs with
       | Int64, Int64 -> Bop.Add, Type.int64
@@ -161,7 +160,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
           got = Expr.typ lhs;
         }
     in
-    Expr.binop ~loc ~op ~lhs ~rhs ~typ
+    Expr.binop ~loc ~op ~lhs ~rhs ~typ ~pure
 
   and of_ast_call ~loc ~callee ~args =
     let callee = of_ast_expr callee in
@@ -169,6 +168,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     let args = List.map args ~f:of_ast_expr in
     let arg_types = List.map args ~f:Expr.typ in
     let param_types = Type.params_exn callee_type in
+    let pure = Expr.is_pure callee && List.for_all args ~f:Expr.is_pure in
     if List.length param_types <> List.length arg_types
     then raise @@ Arity_mismatch {
         loc;
@@ -183,13 +183,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
           got = Expr.typ arg;
         };
     end;
-    Expr.call ~loc ~callee ~args ~typ:(Type.ret_exn callee_type)
-
-  and pure_of_ast_expr (expr: Ast.Expr.t): Pure_expr.t =
-    let expr = of_ast_expr expr in
-    if Fn.non Expr.is_pure expr
-    then raise @@ Purity_error { loc = Expr.loc expr }
-    else Expr.pure_expr_exn expr
+    Expr.call ~loc ~callee ~args ~typ:(Type.ret_exn callee_type) ~pure
 
   in
   List.map ast ~f:of_ast_decl

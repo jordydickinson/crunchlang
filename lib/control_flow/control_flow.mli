@@ -1,5 +1,4 @@
 module Bop = Semantic.Bop
-module Pure_expr = Semantic.Pure_expr
 module Expr = Semantic.Expr
 
 module Stmt : sig
@@ -10,7 +9,7 @@ module Stmt : sig
         loc: Srcloc.t;
         ident: string;
         typ: Type.t;
-        binding: Pure_expr.t;
+        binding: Expr.t;
       }
     | Var of {
         loc: Srcloc.t;
@@ -55,7 +54,7 @@ module Decl : sig
         loc: Srcloc.t;
         ident: string;
         typ: Type.t;
-        binding: Pure_expr.t;
+        binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;
