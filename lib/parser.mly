@@ -14,6 +14,7 @@
 %token KW_FUN "fun"
 %token KW_LET "let"
 %token KW_VAR "var"
+%token KW_IN "in"
 %token KW_IF "if"
 %token KW_ELSE "else"
 %token KW_RETURN "return"
@@ -108,12 +109,14 @@ else_clause:
 
 expr:
   | e = infix { e }
+  | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; "in"; body = expr
+    { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
   ;
 
 infix:
   | e = atom { e }
   | e = call { e }
-  | lhs = atom; "+"; rhs = atom { Expr.add ~loc:$loc ~lhs ~rhs }
+  | lhs = infix; "+"; rhs = atom { Expr.add ~loc:$loc ~lhs ~rhs }
   ;
 
 call:

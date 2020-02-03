@@ -42,6 +42,13 @@ module Expr : sig
         callee: t;
         args: t list;
       }
+    | Let_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type_expr.t option [@sexp.option];
+        binding: t;
+        body: t;
+      }
   [@@deriving sexp_of, variants]
 
   val add : loc:Srcloc.t -> lhs:t -> rhs:t -> t

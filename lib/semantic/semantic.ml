@@ -40,6 +40,14 @@ module Expr = struct
         typ: Type.t;
         pure: bool;
       }
+    | Let_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: t;
+        body: t;
+        pure: bool;
+      }
   [@@deriving sexp_of, variants]
 
   let loc = function
@@ -48,7 +56,8 @@ module Expr = struct
     | Float { loc; _ }
     | Name { loc; _ }
     | Binop { loc; _ }
-    | Call { loc; _ } -> loc
+    | Call { loc; _ }
+    | Let_in { loc; _ }-> loc
 
   let typ = function
     | Int _ -> Type.int64
@@ -56,7 +65,8 @@ module Expr = struct
     | Float _ -> Type.float
     | Name { typ; _ }
     | Binop { typ; _ }
-    | Call { typ; _ } -> typ
+    | Call { typ; _ }
+    | Let_in { typ; _ }-> typ
 
   let is_pure = function
     | Int _
@@ -64,7 +74,8 @@ module Expr = struct
     | Float _ -> true
     | Name { pure; _ }
     | Binop { pure; _ }
-    | Call { pure; _ } -> pure
+    | Call { pure; _ }
+    | Let_in { pure; _ } -> pure
 end
 
 module Stmt = struct

@@ -39,6 +39,14 @@ module Expr : sig
         typ: Type.t;
         pure: bool;
       }
+    | Let_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type.t;
+        binding: t;
+        body: t;
+        pure: bool;
+      }
   [@@deriving sexp_of, variants]
 
   val loc : t -> Srcloc.t

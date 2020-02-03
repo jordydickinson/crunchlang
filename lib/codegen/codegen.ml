@@ -80,6 +80,12 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in
       build_call callee args "calltmp" builder
+    | Let_in { ident; typ; binding; body; _ } ->
+      let pointer = build_alloca (codegen_type typ) ident builder in
+      let binding = codegen_rvalue binding in
+      ignore (build_store binding pointer builder : llvalue);
+      Hashtbl.set names ~key:ident ~data:(Pointer pointer);
+      codegen_rvalue body
   in
 
   let codegen_lvalue_name ident =

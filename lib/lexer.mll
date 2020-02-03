@@ -19,6 +19,7 @@ rule read =
   | "fun" { KW_FUN }
   | "let" { KW_LET }
   | "var" { KW_VAR }
+  | "in" { KW_IN }
   | "if" { KW_IF }
   | "else" { KW_ELSE }
   | "return" { KW_RETURN }

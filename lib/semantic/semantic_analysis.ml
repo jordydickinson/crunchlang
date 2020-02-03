@@ -127,6 +127,7 @@ let analyze_ast (ast: Ast.t): Semantic.t =
     | Name { loc; ident } -> of_ast_name ~loc ~ident
     | Binop { loc; op; lhs; rhs } -> of_ast_binop ~loc ~op ~lhs ~rhs
     | Call { loc; callee; args } -> of_ast_call ~loc ~callee ~args
+    | Let_in { loc; ident; typ; binding; body } -> of_ast_let_in ~loc ~ident ~typ ~binding ~body
 
   and of_ast_name ~loc ~ident =
     match Env.lookup env ident with
@@ -184,6 +185,20 @@ let analyze_ast (ast: Ast.t): Semantic.t =
         };
     end;
     Expr.call ~loc ~callee ~args ~typ:(Type.ret_exn callee_type) ~pure
+
+  and of_ast_let_in ~loc ~ident ~typ ~binding ~body =
+    let binding = of_ast_expr binding in
+    let binding_type = Option.value_map typ ~f:Type.of_type_expr ~default:(Expr.typ binding) in
+    if not @@ Type.equal binding_type (Expr.typ binding)
+    then raise @@ Type_error {
+        loc = Expr.loc binding;
+        expected = [binding_type];
+        got = Expr.typ binding;
+      };
+    let body = of_ast_expr body in
+    let typ = Expr.typ body in
+    let pure = Expr.is_pure body in
+    Expr.(let_in) ~loc ~ident ~typ ~binding ~body ~pure
 
   in
   List.map ast ~f:of_ast_decl

@@ -42,6 +42,13 @@ module Expr = struct
         callee: t;
         args: t list;
       }
+    | Let_in of {
+        loc: Srcloc.t;
+        ident: string;
+        typ: Type_expr.t option [@sexp.option];
+        binding: t;
+        body: t;
+      }
   [@@deriving sexp_of, variants]
 
   let add = binop ~op:Bop.add
@@ -52,7 +59,8 @@ module Expr = struct
     | Float { loc; _ }
     | Name { loc; _ }
     | Binop { loc; _ }
-    | Call { loc; _ } -> loc
+    | Call { loc; _ }
+    | Let_in { loc; _ } -> loc
 end
 
 module Stmt = struct
