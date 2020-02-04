@@ -84,8 +84,6 @@ stmt:
   | e = expr; ";" { Stmt.expr e }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
-  | "let"; ident = IDENT; typ = type_annot?; "="; body = block
-    { Stmt.let_block ~loc:$loc ~ident ~typ ~body }
   | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
     { Stmt.var ~loc:$loc ~ident ~typ ~binding }
   | if_ = if_stmt { if_ }

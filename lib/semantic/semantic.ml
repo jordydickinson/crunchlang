@@ -331,7 +331,6 @@ module Stmt = struct
       let typ = Option.map ~f:Type.of_type_expr typ in
       let binding = Expr.build_ast binding in
       (let_) ~loc ~ident ~typ ~binding
-    | Let_block _ -> assert false
     | Var { loc; ident; typ; binding } ->
       let typ = Option.map ~f:Type.of_type_expr typ in
       let binding = Expr.build_ast binding in

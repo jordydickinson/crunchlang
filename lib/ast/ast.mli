@@ -78,12 +78,6 @@ module Stmt : sig
         typ: Type_expr.t option [@sexp.option];
         binding: Expr.t;
       }
-    | Let_block of {
-        loc: Srcloc.t;
-        ident: string;
-        typ: Type_expr.t option [@sexp.option];
-        body: t;
-      }
     | Var of {
         loc: Srcloc.t;
         ident: string;
