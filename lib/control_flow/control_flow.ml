@@ -1,5 +1,5 @@
-module Bop = Semantic.Bop
 module Expr = Semantic.Expr
+module Bop = Expr.Bop
 
 module Stmt = struct
   type t =

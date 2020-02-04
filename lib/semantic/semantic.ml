@@ -1,15 +1,22 @@
+exception Type_error of {
+    loc: Srcloc.t;
+    expected: Type.t list;
+    got: Type.t;
+  }
+
+exception Arity_mismatch of {
+    loc: Srcloc.t;
+    expected: int;
+    got: int;
+  }
+
 exception Purity_error of {
     loc: Srcloc.t
   }
 
-module Bop = struct
-  type t =
-    | Add
-    | Fadd
-  [@@deriving sexp_of, variants]
-end
-
 module Expr = struct
+  module Bop = Ast.Expr.Bop
+
   type t =
     | Int of {
         loc: Srcloc.t;
@@ -34,7 +41,6 @@ module Expr = struct
         op: Bop.t;
         lhs: t;
         rhs: t;
-        typ: Type.t;
       }
     | Assign of {
         loc: Srcloc.t;
@@ -45,19 +51,16 @@ module Expr = struct
         loc: Srcloc.t;
         callee: t;
         args: t list;
-        typ: Type.t;
       }
     | Let_in of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.t;
         binding: t;
         body: t;
       }
     | Var_in of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.t;
         binding: t;
         body: t;
       }
@@ -74,16 +77,16 @@ module Expr = struct
     | Let_in { loc; _ }
     | Var_in { loc; _ } -> loc
 
-  let typ = function
+  let rec typ = function
     | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
     | Assign _ -> Type.void
-    | Name { typ; _ }
-    | Binop { typ; _ }
-    | Call { typ; _ }
-    | Let_in { typ; _ }
-    | Var_in { typ; _ } -> typ
+    | Name { typ; _ } -> typ
+    | Binop { lhs; _ } -> typ lhs
+    | Call { callee; _ } -> Type.ret_exn @@ typ callee
+    | Let_in { body; _ }
+    | Var_in { body; _ } -> typ body
 
   let rec impurities = function
     | Int _ | Bool _ | Float _ -> String.Set.empty
@@ -99,10 +102,50 @@ module Expr = struct
 
   let is_pure expr = Set.is_empty @@ impurities expr
 
-  let let_in ~loc:loc' ~ident ~typ ~binding ~body =
+  let typecheck_or expr ~types =
+    if not @@ List.exists types ~f:(fun typ' -> Type.equal typ' @@ typ expr)
+    then raise @@ Type_error {
+        loc = loc expr;
+        expected = types;
+        got = typ expr;
+      }
+
+  let typecheck expr ~typ:typ' =
+    typecheck_or expr ~types:[typ']
+
+  let binop ~loc ~op:Bop.Add ~lhs ~rhs =
+    typecheck_or lhs ~types:[Type.int64; Type.float];
+    typecheck rhs ~typ:(typ lhs);
+    binop ~loc ~op:Bop.Add ~lhs ~rhs
+
+  let assign ~loc ~src ~dst =
+    typecheck dst ~typ:(typ src);
+    assign ~loc ~src ~dst
+
+  let call ~loc ~callee ~args =
+    begin
+      match List.iter2 (Type.params_exn @@ typ callee) args
+              ~f:(fun typ arg -> typecheck arg ~typ)
+      with
+      | Ok _ -> ()
+      | Unequal_lengths ->
+        raise @@ Arity_mismatch {
+          loc;
+          expected = List.length @@ Type.params_exn @@ typ callee;
+          got = List.length args;
+        }
+    end;
+    call ~loc ~callee ~args
+
+  let let_in ?binding_type ~loc:loc' ~ident ~binding ~body =
+    Option.iter binding_type ~f:(fun typ -> typecheck ~typ binding);
     if not @@ is_pure binding
     then raise @@ Purity_error { loc = loc binding };
-    (let_in) ~loc:loc' ~ident ~typ ~binding ~body
+    (let_in) ~loc:loc' ~ident ~binding ~body
+
+  let var_in ?binding_type ~loc ~ident ~binding ~body =
+    Option.iter binding_type ~f:(fun typ -> typecheck ~typ binding);
+    var_in ~loc ~ident ~binding ~body
 end
 
 module Stmt = struct
@@ -137,10 +180,15 @@ module Stmt = struct
     | Block _ as stmt -> stmt
     | stmt -> Block [stmt]
 
-  let let_ ~loc ~ident ~typ ~binding =
+  let let_ ~loc ~typ ident binding =
     if Fn.non Expr.is_pure binding
     then raise @@ Purity_error { loc = Expr.loc binding };
+    Expr.typecheck ~typ binding;
     (let_) ~loc ~ident ~typ ~binding
+
+  let var ~loc ~typ ident binding =
+    Expr.typecheck ~typ binding;
+    var ~loc ~ident ~typ ~binding
 end
 
 module Decl = struct
@@ -167,6 +215,7 @@ module Decl = struct
   let let_ ~loc ~ident ~typ ~binding =
     if Fn.non Expr.is_pure binding
     then raise @@ Purity_error { loc = Expr.loc binding };
+    Expr.typecheck ~typ binding;
     (let_) ~loc ~ident ~typ ~binding
 end
 

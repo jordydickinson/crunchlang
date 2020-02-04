@@ -32,8 +32,8 @@ type binding =
   | Pointer of llvalue
 
 let codegen_cf module_ (cf: Control_flow.t) =
-  let module Bop = Control_flow.Bop in
   let module Expr = Control_flow.Expr in
+  let module Bop = Expr.Bop in
 
   let names = String.Table.create () in
 
@@ -66,14 +66,17 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Pointer p -> build_load p ident builder
   in
 
-  let codegen_bop (op: Bop.t) lhs rhs ~builder =
-    match op with
-    | Add -> build_add lhs rhs "addtmp" builder
-    | Fadd -> build_fadd lhs rhs "addtmp" builder
-  in
-
   let rec codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
+    let codegen_bop ~op:Bop.Add ~lhs ~rhs =
+      let typ = Expr.typ lhs in
+      let lhs = codegen_rvalue lhs in
+      let rhs = codegen_rvalue rhs in
+      match typ with
+      | Int64 -> build_add lhs rhs "addtmp" builder
+      | Float -> build_fadd lhs rhs "addtmp" builder
+      | _ -> assert false
+    in
     match expr with
     | Int { value; _ } ->
       const_of_int64 (codegen_type @@ Expr.typ expr) value
@@ -84,10 +87,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float { value; _ } ->
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
-    | Binop { op; lhs; rhs; _ } ->
-      let lhs = codegen_rvalue lhs in
-      let rhs = codegen_rvalue rhs in
-      codegen_bop op lhs rhs ~builder
+    | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Assign { dst; src; _ } ->
       let dst = codegen_lvalue dst in
       let src = codegen_rvalue src in
@@ -96,8 +96,9 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in
       build_call callee args "calltmp" builder
-    | Let_in { ident; typ; binding; body; _ }
-    | Var_in { ident; typ; binding; body; _ } ->
+    | Let_in { ident; binding; body; _ }
+    | Var_in { ident; binding; body; _ } ->
+      let typ = Expr.typ expr in
       let pointer = build_alloca (codegen_type typ) ident builder in
       let binding = codegen_rvalue binding in
       ignore (build_store binding pointer builder : llvalue);

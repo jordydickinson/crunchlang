@@ -1,4 +1,3 @@
-module Bop = Semantic.Bop
 module Expr = Semantic.Expr
 
 module Stmt : sig
