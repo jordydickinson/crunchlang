@@ -55,7 +55,12 @@ module Flow = struct
     | Seq of Stmt.t * t
   [@@deriving sexp_of, variants]
 
-  let rec of_semantic_stmts (stmts: Semantic.Stmt.t list) ~continue =
+  let rec of_semantic_block (stmt: Semantic.Stmt.t) ~continue =
+    match stmt with
+    | Block stmts -> of_semantic_stmts stmts ~continue
+    | _ -> of_semantic_block ~continue @@ Semantic.Stmt.to_block stmt
+
+  and of_semantic_stmts (stmts: Semantic.Stmt.t list) ~continue =
     match stmts with
     | [] -> continue
     | (Expr _ as stmt) :: stmts
@@ -108,20 +113,15 @@ module Decl = struct
       }
   [@@deriving sexp_of, variants]
 
-  let rec of_semantic_decl (decl: Semantic.Decl.t) =
+  let of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
     | Let { loc; ident; typ; binding } ->
       Let { loc; ident; typ; binding }
-    | Fun { loc; ident; params; typ; body = Block stmts } ->
+    | Fun { loc; ident; params; typ; body } ->
       Fun {
         loc; ident; params; typ;
-        body = Flow.of_semantic_stmts stmts ~continue:Exit;
+        body = Flow.of_semantic_block body ~continue:Exit;
       }
-    | Fun { loc; ident; params; typ; body } ->
-      of_semantic_decl
-      @@ Semantic.Decl.fun_
-        ~loc ~ident ~params ~typ
-        ~body:(Semantic.Stmt.to_block body)
 end
 
 type t = Decl.t list

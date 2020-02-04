@@ -14,6 +14,12 @@ exception Purity_error of {
     loc: Srcloc.t
   }
 
+module Env : sig
+  type t
+
+  val empty : t
+end
+
 module Expr : sig
   module Bop = Ast.Expr.Bop
 
@@ -64,7 +70,9 @@ module Expr : sig
         binding: t;
         body: t;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
+
+  type builder
 
   val loc : t -> Srcloc.t
 
@@ -74,23 +82,15 @@ module Expr : sig
 
   val is_pure : t -> bool
 
-  val int : loc:Srcloc.t -> value:int64 -> t
-
-  val bool : loc:Srcloc.t -> value:bool -> t
-
-  val float : loc:Srcloc.t -> value:float -> t
-
-  val name : loc:Srcloc.t -> ident:string -> typ:Type.t -> pure:bool -> t
-
-  val binop : loc:Srcloc.t -> op:Bop.t -> lhs:t -> rhs:t -> t
-
-  val assign : loc:Srcloc.t -> src:t -> dst:t -> t
-
-  val call : loc:Srcloc.t -> callee:t -> args:t list -> t
-
-  val let_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:t -> body:t -> t
-
-  val var_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:t -> body:t -> t
+  val int : loc:Srcloc.t -> value:int64 -> builder
+  val bool : loc:Srcloc.t -> value:bool -> builder
+  val float : loc:Srcloc.t -> value:float -> builder
+  val name : loc:Srcloc.t -> ident:string -> builder
+  val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
+  val assign : loc:Srcloc.t -> dst:builder -> src:builder -> builder
+  val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
+  val let_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
+  val var_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
 end
 
 module Stmt : sig
@@ -119,11 +119,16 @@ module Stmt : sig
         loc: Srcloc.t;
         arg: Expr.t option [@sexp.option];
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 
-  val let_ : loc:Srcloc.t -> typ:Type.t -> string -> Expr.t -> t
+  type builder
 
-  val var : loc:Srcloc.t -> typ:Type.t -> string -> Expr.t -> t
+  val expr : Expr.builder -> builder
+  val block : builder list -> builder
+  val let_ : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
+  val var : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
+  val if_ : loc:Srcloc.t -> cond:Expr.builder -> iftrue:builder -> iffalse:builder option -> builder
+  val return : loc:Srcloc.t -> arg:Expr.builder option -> builder
 
   val to_block : t -> t
 end
@@ -143,11 +148,22 @@ module Decl : sig
         typ: Type.t;
         body: Stmt.t;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 
-  val let_ : loc:Srcloc.t -> ident:string -> typ:Type.t -> binding:Expr.t -> t
+  type builder
+
+  val let_ : loc:Srcloc.t -> ident:string -> typ:Type.t -> binding:Expr.builder -> builder
+  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.t -> body:Stmt.builder -> builder
 
   val typ : t -> Type.t
 end
 
 type t = Decl.t list
+
+type builder
+
+val declare : builder -> Decl.builder -> builder
+
+val build : builder -> Env.t -> t * Env.t
+
+val build_ast : Ast.t -> Env.t -> t * Env.t
