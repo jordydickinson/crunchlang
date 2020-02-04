@@ -87,12 +87,6 @@ module Expr = struct
         binding: t;
         body: t;
       }
-    | Var_in of {
-        loc: Srcloc.t;
-        ident: string;
-        binding: t;
-        body: t;
-      }
   [@@deriving sexp_of, variants]
 
   type builder = Env.t -> t
@@ -104,8 +98,7 @@ module Expr = struct
     | Name { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
-    | Let_in { loc; _ }
-    | Var_in { loc; _ } -> loc
+    | Let_in { loc; _ } -> loc
 
   let rec typ = function
     | Int _ -> Type.int64
@@ -114,8 +107,7 @@ module Expr = struct
     | Name { typ; _ } -> typ
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
-    | Let_in { body; _ }
-    | Var_in { body; _ } -> typ body
+    | Let_in { body; _ } -> typ body
 
   let rec impurities = function
     | Int _ | Bool _ | Float _ -> String.Set.empty
@@ -125,8 +117,6 @@ module Expr = struct
     | Call { callee; args; _ } ->
       String.Set.union_list (impurities callee :: List.map ~f:impurities args)
     | Let_in { body; _ } -> impurities body
-    | Var_in { ident; binding; body; _ } ->
-      Set.remove (Set.union (impurities binding) (impurities body)) ident
 
   let is_pure expr = Set.is_empty @@ impurities expr
 
@@ -190,16 +180,6 @@ module Expr = struct
     let body = body env in
     (let_in) ?binding_type ~loc ~ident ~binding ~body
 
-  let var_in ?binding_type ~loc ~ident ~binding ~body =
-    Option.iter binding_type ~f:(fun typ -> typecheck ~typ binding);
-    var_in ~loc ~ident ~binding ~body
-
-  let var_in ?binding_type ~loc ~ident ~binding ~body = fun env ->
-    let binding = binding env in
-    let env = Env.bind env ~ident ~typ:(typ binding) ~pure:false in
-    let body = body env in
-    var_in ?binding_type ~loc ~ident ~binding ~body
-
   let rec build_ast (expr: Ast.Expr.t) =
     match expr with
     | Int { loc; value } -> int ~loc ~value
@@ -219,11 +199,6 @@ module Expr = struct
       let binding = build_ast binding in
       let body = build_ast body in
       (let_in) ~loc ~ident ?binding_type ~binding ~body
-    | Var_in { loc; ident; typ; binding; body } ->
-      let binding_type = Option.map ~f:Type.of_type_expr typ in
-      let binding = build_ast binding in
-      let body = build_ast body in
-      var_in ~loc ~ident ?binding_type ~binding ~body
 end
 
 module Stmt = struct

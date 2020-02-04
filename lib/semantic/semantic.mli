@@ -59,12 +59,6 @@ module Expr : sig
         binding: t;
         body: t;
       }
-    | Var_in of {
-        loc: Srcloc.t;
-        ident: string;
-        binding: t;
-        body: t;
-      }
   [@@deriving sexp_of]
 
   type builder
@@ -84,7 +78,6 @@ module Expr : sig
   val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
   val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
   val let_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
-  val var_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
 end
 
 module Stmt : sig

@@ -110,8 +110,6 @@ expr:
   | e = infix { e }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; "in"; body = expr
     { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
-  | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; "in"; body = expr
-    { Expr.var_in ~loc:$loc ~ident ~typ ~binding ~body }
   ;
 
 infix:
