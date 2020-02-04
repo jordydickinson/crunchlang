@@ -61,6 +61,7 @@ module Decl : sig
         params: string list;
         typ: Type.t;
         body: Flow.t;
+        pure: bool;
       }
   [@@deriving sexp_of, variants]
 end

@@ -112,6 +112,7 @@ module Decl = struct
         params: string list;
         typ: Type.t;
         body: Flow.t;
+        pure: bool;
       }
   [@@deriving sexp_of, variants]
 
@@ -119,9 +120,9 @@ module Decl = struct
     match decl with
     | Let { loc; ident; typ; binding } ->
       Let { loc; ident; typ; binding }
-    | Fun { loc; ident; params; typ; body } ->
+    | Fun { loc; ident; params; typ; body; pure } ->
       Fun {
-        loc; ident; params; typ;
+        loc; ident; params; typ; pure;
         body = Flow.of_semantic_block body ~continue:Exit;
       }
 end

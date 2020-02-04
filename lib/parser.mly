@@ -73,7 +73,12 @@ decl:
     "("; params = separated_list(",", param); ")";
     ret_type = type_annot;
     body = block;
-    { Decl.fun_ ~loc:$loc ~ident ~params ~ret_type ~body }
+    { Decl.fun_ ~loc:$loc ~ident ~params ~ret_type ~body ~pure:false }
+  | "fun"; ident = IDENT;
+    "("; params = separated_list(",", param); ")";
+    ret_type = type_annot;
+    body = block;
+    { Decl.fun_ ~loc:$loc ~ident ~params ~ret_type ~body ~pure:true }
   ;
 
 param:

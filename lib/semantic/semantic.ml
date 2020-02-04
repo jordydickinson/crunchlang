@@ -236,6 +236,30 @@ module Stmt = struct
 
   type builder = Env.t -> (t * Env.t)
 
+  let rec impurities stmt =
+    let rec block_impurities = function
+      | [] -> String.Set.empty
+      | Var { ident; _ } :: stmts ->
+        Set.remove (block_impurities stmts) ident
+      | stmt :: stmts ->
+        Set.union (impurities stmt) (block_impurities stmts)
+    in
+    match stmt with
+    | Expr expr -> Expr.impurities expr
+    | Block stmts -> block_impurities stmts
+    | Assign { dst; src; _ } -> Set.union (Expr.impurities dst) (Expr.impurities src)
+    | Let _ -> String.Set.empty
+    | Var { binding; _ } -> Expr.impurities binding
+    | If { cond; iftrue; iffalse; _ } ->
+      String.Set.union_list [
+        Expr.impurities cond;
+        impurities iftrue;
+        Option.value_map iffalse ~f:impurities ~default:String.Set.empty
+      ]
+    | Return { arg; _ } -> Option.value_map arg ~f:Expr.impurities ~default:String.Set.empty
+
+  let is_pure stmt = Set.is_empty @@ impurities stmt
+
   let to_block = function
     | Block _ as stmt -> stmt
     | stmt -> Block [stmt]
@@ -331,6 +355,7 @@ module Decl = struct
         params: string list;
         typ: Type.t;
         body: Stmt.t;
+        pure: bool;
       }
   [@@deriving sexp_of, variants]
 
@@ -351,25 +376,30 @@ module Decl = struct
     let env = Env.bind env ~ident ~typ ~pure:true in
     (let_) ~loc ~ident ~typ ~binding, env
 
-  let fun_ ~loc ~ident ~params ~typ ~body = fun env ->
-    let env = Env.bind env ~ident ~typ ~pure:false in
+  let fun_ ~loc ~ident ~params ~typ ~body ~pure =
+    if pure && Fn.non Stmt.is_pure body
+    then raise @@ Purity_error { loc };
+    fun_ ~loc ~ident ~params ~typ ~body ~pure
+
+  let fun_ ~loc ~ident ~params ~typ ~body ~pure = fun env ->
+    let env = Env.bind env ~ident ~typ ~pure in
     let env' = List.fold2_exn params (Type.params_exn typ) ~init:env
         ~f:(fun env ident typ -> Env.bind env ~ident ~typ ~pure:true) in
     let body, _ = body env' in
-    fun_ ~loc ~ident ~params ~typ ~body, env
+    fun_ ~loc ~ident ~params ~typ ~body ~pure, env
 
   let build_ast (decl: Ast.Decl.t) =
     match decl with
     | Let { loc; ident; typ; binding } ->
       (let_) ~loc ~ident ~typ:(Type.of_type_expr typ)
         ~binding:(Expr.build_ast binding)
-    | Fun { loc; ident; params; ret_type; body } ->
+    | Fun { loc; ident; params; ret_type; body; pure } ->
       let params, param_types = List.unzip params in
       let param_types = List.map param_types ~f:Type.of_type_expr in
       let ret_type = Type.of_type_expr ret_type in
       let typ = Type.fun_ ~params:param_types ~ret:ret_type in
       let body = Stmt.build_ast body in
-      (fun_) ~loc ~ident ~params ~typ ~body
+      (fun_) ~loc ~ident ~params ~typ ~body ~pure
 end
 
 type t = Decl.t list

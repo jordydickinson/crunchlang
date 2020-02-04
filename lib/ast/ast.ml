@@ -116,6 +116,7 @@ module Decl = struct
         params: (string * Type_expr.t) list;
         ret_type: Type_expr.t;
         body: Stmt.t;
+        pure: bool [@sexp.bool];
       }
   [@@deriving sexp_of, variants]
 

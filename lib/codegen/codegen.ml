@@ -193,7 +193,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_ret_void ctor_builder : llvalue);
       add_ctor ctor_func;
       Hashtbl.set names ~key:ident ~data:(Pointer global);
-    | Fun { loc = _; ident; params; typ; body } ->
+    | Fun { loc = _; ident; params; typ; body; _ } ->
       (* Definition *)
       let func = define_function
           (String.chop_suffix_exn ~suffix:"!" ident)

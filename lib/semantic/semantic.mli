@@ -140,13 +140,14 @@ module Decl : sig
         params: string list;
         typ: Type.t;
         body: Stmt.t;
+        pure: bool;
       }
   [@@deriving sexp_of]
 
   type builder
 
   val let_ : loc:Srcloc.t -> ident:string -> typ:Type.t -> binding:Expr.builder -> builder
-  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.t -> body:Stmt.builder -> builder
+  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.t -> body:Stmt.builder -> pure:bool -> builder
 
   val typ : t -> Type.t
 end
