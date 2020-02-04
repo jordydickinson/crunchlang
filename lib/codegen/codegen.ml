@@ -88,10 +88,6 @@ let codegen_cf module_ (cf: Control_flow.t) =
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
-    | Assign { dst; src; _ } ->
-      let dst = codegen_lvalue dst in
-      let src = codegen_rvalue src in
-      build_store src dst builder
     | Call { callee; args; _ } ->
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in

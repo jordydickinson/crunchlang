@@ -96,9 +96,8 @@ let%expect_test _ =
 let%expect_test _ =
   print_parse_stmt "x := 1;";
   [%expect {|
-    (Expr
-     (Assign (loc (:1:0 :1:6)) (dst (Name (loc (:1:0 :1:1)) (ident x)))
-      (src (Int (loc (:1:5 :1:6)) (value 1))))) |}]
+    (Assign (loc (:1:0 :1:7)) (dst (Name (loc (:1:0 :1:1)) (ident x)))
+     (src (Int (loc (:1:5 :1:6)) (value 1)))) |}]
 
 let%expect_test _ =
   print_parse_stmt "let x = 1;";

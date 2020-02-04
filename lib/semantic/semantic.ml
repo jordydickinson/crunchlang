@@ -76,11 +76,6 @@ module Expr = struct
         lhs: t;
         rhs: t;
       }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: t;
-        src: t;
-      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -108,7 +103,6 @@ module Expr = struct
     | Float { loc; _ }
     | Name { loc; _ }
     | Binop { loc; _ }
-    | Assign { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ }
     | Var_in { loc; _ } -> loc
@@ -117,7 +111,6 @@ module Expr = struct
     | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
-    | Assign _ -> Type.void
     | Name { typ; _ } -> typ
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
@@ -129,7 +122,6 @@ module Expr = struct
     | Name { ident; pure; _ } ->
       if pure then String.Set.empty else String.Set.singleton ident
     | Binop { lhs; rhs; _ } -> Set.union (impurities lhs) (impurities rhs)
-    | Assign { dst; src; _ } -> Set.union (impurities dst) (impurities src)
     | Call { callee; args; _ } ->
       String.Set.union_list (impurities callee :: List.map ~f:impurities args)
     | Let_in { body; _ } -> impurities body
@@ -167,13 +159,6 @@ module Expr = struct
 
   let binop ~loc ~op ~lhs ~rhs = fun env ->
     binop ~loc ~op ~lhs:(lhs env) ~rhs:(rhs env)
-
-  let assign ~loc ~src ~dst =
-    typecheck dst ~typ:(typ src);
-    assign ~loc ~src ~dst
-
-  let assign ~loc ~dst ~src = fun env ->
-    assign ~loc ~dst:(dst env) ~src:(src env)
 
   let call ~loc ~callee ~args =
     begin
@@ -225,10 +210,6 @@ module Expr = struct
       let lhs = build_ast lhs in
       let rhs = build_ast rhs in
       binop ~loc ~op ~lhs ~rhs
-    | Assign { loc; dst; src } ->
-      let dst = build_ast dst in
-      let src = build_ast src in
-      assign ~loc ~dst ~src
     | Call { loc; callee; args } ->
       let callee = build_ast callee in
       let args = List.map args ~f:build_ast in
@@ -249,6 +230,11 @@ module Stmt = struct
   type t =
     | Expr of Expr.t
     | Block of t list
+    | Assign of {
+        loc: Srcloc.t;
+        dst: Expr.t;
+        src: Expr.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -290,6 +276,13 @@ module Stmt = struct
     in
     block @@ block' env stmts ~accum:[], env
 
+  let assign ~loc ~src ~dst =
+    Expr.typecheck dst ~typ:(Expr.typ src);
+    assign ~loc ~src ~dst
+
+  let assign ~loc ~dst ~src = fun env ->
+    assign ~loc ~dst:(dst env) ~src:(src env), env
+
   let let_ ~loc ~typ ~ident ~binding =
     if Fn.non Expr.is_pure binding
     then raise @@ Purity_error { loc = Expr.loc binding };
@@ -327,6 +320,10 @@ module Stmt = struct
     match stmt with
     | Expr expr' -> expr @@ Expr.build_ast expr'
     | Block stmts -> block @@ List.map stmts ~f:build_ast
+    | Assign { loc; dst; src } ->
+      let dst = Expr.build_ast dst in
+      let src = Expr.build_ast src in
+      assign ~loc ~dst ~src
     | Let { loc; ident; typ; binding } ->
       let typ = Option.map ~f:Type.of_type_expr typ in
       let binding = Expr.build_ast binding in

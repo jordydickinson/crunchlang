@@ -37,11 +37,6 @@ module Expr : sig
         lhs: t;
         rhs: t;
       }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: t;
-        src: t;
-      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -72,6 +67,11 @@ module Stmt : sig
   type t = private
     | Expr of Expr.t
     | Block of t list
+    | Assign of {
+        loc: Srcloc.t;
+        dst: Expr.t;
+        src: Expr.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;

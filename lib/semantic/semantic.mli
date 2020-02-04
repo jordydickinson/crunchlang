@@ -48,11 +48,6 @@ module Expr : sig
         lhs: t;
         rhs: t;
       }
-    | Assign of {
-        loc: Srcloc.t;
-        dst: t;
-        src: t;
-      }
     | Call of {
         loc: Srcloc.t;
         callee: t;
@@ -87,7 +82,6 @@ module Expr : sig
   val float : loc:Srcloc.t -> value:float -> builder
   val name : loc:Srcloc.t -> ident:string -> builder
   val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
-  val assign : loc:Srcloc.t -> dst:builder -> src:builder -> builder
   val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
   val let_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
   val var_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
@@ -97,6 +91,11 @@ module Stmt : sig
   type t = private
     | Expr of Expr.t
     | Block of t list
+    | Assign of {
+        loc: Srcloc.t;
+        dst: Expr.t;
+        src: Expr.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -125,6 +124,7 @@ module Stmt : sig
 
   val expr : Expr.builder -> builder
   val block : builder list -> builder
+  val assign : loc:Srcloc.t -> dst:Expr.builder -> src:Expr.builder -> builder
   val let_ : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
   val var : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
   val if_ : loc:Srcloc.t -> cond:Expr.builder -> iftrue:builder -> iffalse:builder option -> builder
