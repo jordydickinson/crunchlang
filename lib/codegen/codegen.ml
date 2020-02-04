@@ -1,7 +1,5 @@
 open LLVM
 
-module Env = Codegen_env
-
 let init = lazy (Llvm_all_backends.initialize ())
 
 let global_context = LLVM.global_context

@@ -8,7 +8,6 @@
  (preprocess (pps ppx_jane))
  (private_modules
   LLVM
-  codegen_env
   codegen_tests parser_tests))
 
 (ocamllex
