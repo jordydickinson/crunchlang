@@ -31,6 +31,8 @@ module Env : sig
 
   val lookup : t -> string -> binding option
 
+  val typeof : t -> string -> Type.t option
+
   val bind : t -> ident:string -> typ:Type.t -> pure:bool -> t
 end = struct
   type binding = {
@@ -43,6 +45,9 @@ end = struct
   let empty = String.Map.empty
 
   let lookup env ident = Map.find env ident
+
+  let typeof env ident =
+    Option.map (lookup env ident) ~f:(function { typ; _ } -> typ)
 
   let bind env ~ident ~typ ~pure =
     Map.set env ~key:ident ~data:{ typ; pure }
@@ -313,7 +318,16 @@ module Stmt = struct
     if_ ~loc ~cond ~iftrue ~iffalse, env
 
   let return ~loc ~arg = fun env ->
-    return ~loc ~arg:(Option.map arg ~f:(fun arg -> arg env)), env
+    let arg = Option.map arg ~f:(fun arg -> arg env) in
+    let arg_type = Option.value_map arg ~f:Expr.typ ~default:Type.void in
+    let ret_type = Env.typeof env "return" |> Option.value_exn in
+    if not @@ Type.equal ret_type arg_type
+    then raise @@ Type_error {
+        loc;
+        expected = [ret_type];
+        got = arg_type
+      };
+    return ~loc ~arg, env
 
   let rec build_ast (stmt: Ast.Stmt.t) =
     match stmt with
@@ -383,7 +397,8 @@ module Decl = struct
 
   let fun_ ~loc ~ident ~params ~typ ~body ~pure = fun env ->
     let env = Env.bind env ~ident ~typ ~pure in
-    let env' = List.fold2_exn params (Type.params_exn typ) ~init:env
+    let env' = Env.bind env ~ident:"return" ~typ:(Type.ret_exn typ) ~pure:true in
+    let env' = List.fold2_exn params (Type.params_exn typ) ~init:env'
         ~f:(fun env ident typ -> Env.bind env ~ident ~typ ~pure:true) in
     let body, _ = body env' in
     fun_ ~loc ~ident ~params ~typ ~body ~pure, env
