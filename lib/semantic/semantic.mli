@@ -142,6 +142,13 @@ module Decl : sig
         body: Stmt.t;
         pure: bool;
       }
+    | Fun_expr of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        body: Expr.t;
+      }
   [@@deriving sexp_of]
 
   type builder

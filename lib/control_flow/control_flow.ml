@@ -114,6 +114,13 @@ module Decl = struct
         body: Flow.t;
         pure: bool;
       }
+    | Fun_expr of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        body: Expr.t;
+      }
   [@@deriving sexp_of, variants]
 
   let of_semantic_decl (decl: Semantic.Decl.t) =
@@ -125,6 +132,8 @@ module Decl = struct
         loc; ident; params; typ; pure;
         body = Flow.of_semantic_block body ~continue:Exit;
       }
+    | Fun_expr { loc; ident; params; typ; body } ->
+      Fun_expr { loc; ident; params; typ; body }
 end
 
 type t = Decl.t list

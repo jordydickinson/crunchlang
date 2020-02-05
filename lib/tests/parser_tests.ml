@@ -142,3 +142,14 @@ let%expect_test _ =
   [%expect {|
     (Fun (loc (:1:0 :1:19)) (ident nop!) (params ())
      (ret_type (Void (loc (:1:12 :1:16)))) (body (Block ()))) |}]
+
+let%expect_test _ =
+  print_parse_decl "fun add(x: int64, y: int64): int64 = x + y;";
+  [%expect {|
+    (Fun_expr (loc (:1:0 :1:43)) (ident add)
+     (params ((x (Int64 (loc (:1:11 :1:16)))) (y (Int64 (loc (:1:21 :1:26))))))
+     (ret_type (Int64 (loc (:1:29 :1:34))))
+     (body
+      (Binop (loc (:1:37 :1:42)) (op Add)
+       (lhs (Name (loc (:1:37 :1:38)) (ident x)))
+       (rhs (Name (loc (:1:41 :1:42)) (ident y)))))) |}]

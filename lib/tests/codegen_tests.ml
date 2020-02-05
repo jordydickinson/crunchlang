@@ -16,7 +16,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define void @main() {
+    define void @"main!"() {
     entry:
       br label %exit
 
@@ -37,7 +37,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define void @main() {
+    define void @"main!"() {
     entry:
       br label %body
 
@@ -62,7 +62,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -87,7 +87,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define double @main() {
+    define double @"main!"() {
     entry:
       br label %body
 
@@ -113,7 +113,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -139,7 +139,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -166,7 +166,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -192,7 +192,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -222,7 +222,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -254,7 +254,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -292,7 +292,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -321,7 +321,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main(i64 %x) {
+    define i64 @"main!"(i64 %x) {
     entry:
       br label %body
 
@@ -351,7 +351,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @add1(i64 %x) {
+    define i64 @"add1!"(i64 %x) {
     entry:
       br label %body
 
@@ -360,12 +360,12 @@ let%expect_test _ =
       ret i64 %addtmp
     }
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
     body:                                             ; preds = %entry
-      %calltmp = call i64 @add1(i64 1)
+      %calltmp = call i64 @"add1!"(i64 1)
       ret i64 %calltmp
     }
 
@@ -392,7 +392,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @add1(i64 %x) {
+    define i64 @"add1!"(i64 %x) {
     entry:
       br label %body
 
@@ -401,7 +401,7 @@ let%expect_test _ =
       ret i64 %addtmp
     }
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -409,7 +409,7 @@ let%expect_test _ =
       %x = alloca i64
       store i64 1, i64* %x
       %x1 = load i64, i64* %x
-      %calltmp = call i64 @add1(i64 %x1)
+      %calltmp = call i64 @"add1!"(i64 %x1)
       store i64 %calltmp, i64* %x
       %x2 = load i64, i64* %x
       ret i64 %x2
@@ -438,7 +438,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -481,7 +481,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define void @main() {
+    define void @"main!"() {
     entry:
       br label %body
 
@@ -594,7 +594,7 @@ let%expect_test _ =
       ret void
     }
 
-    define i64 @main() {
+    define i64 @"main!"() {
     entry:
       br label %body
 
@@ -609,5 +609,24 @@ let%expect_test _ =
     entry:
       call void @init.ctors.y()
       call void @init.ctors.x()
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|fun add(x: int64, y: int64): int64 = x + y;|};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define i64 @add(i64 %x, i64 %y) {
+    entry:
+      %addtmp = add i64 %x, %y
+      ret i64 %addtmp
+    }
+
+    define void @init.ctors() {
+    entry:
       ret void
     } |}]

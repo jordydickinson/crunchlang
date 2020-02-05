@@ -371,13 +371,21 @@ module Decl = struct
         body: Stmt.t;
         pure: bool;
       }
+    | Fun_expr of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        body: Expr.t;
+      }
   [@@deriving sexp_of, variants]
 
   type builder = Env.t -> t * Env.t
 
   let typ = function
-    | Let { typ; _ } -> typ
-    | Fun { typ; _ } -> typ
+    | Let { typ; _ }
+    | Fun { typ; _ }
+    | Fun_expr { typ; _ } -> typ
 
   let let_ ~loc ~ident ~typ ~binding =
     if Fn.non Expr.is_pure binding
@@ -403,6 +411,19 @@ module Decl = struct
     let body, _ = body env' in
     fun_ ~loc ~ident ~params ~typ ~body ~pure, env
 
+  let fun_expr ~loc ~ident ~params ~typ ~body =
+    Expr.typecheck ~typ:(Type.ret_exn typ) body;
+    if not @@ Expr.is_pure body
+    then raise @@ Purity_error { loc = Expr.loc body };
+    fun_expr ~loc ~ident ~params ~typ ~body
+
+  let fun_expr ~loc ~ident ~params ~typ ~body = fun env ->
+    let env = Env.bind env ~ident ~typ ~pure:true in
+    let env' = List.fold2_exn params (Type.params_exn typ) ~init:env
+        ~f:(fun env ident typ -> Env.bind env ~ident ~typ ~pure:true) in
+    let body = body env' in
+    fun_expr ~loc ~ident ~params ~typ ~body, env
+
   let build_ast (decl: Ast.Decl.t) =
     match decl with
     | Let { loc; ident; typ; binding } ->
@@ -415,6 +436,13 @@ module Decl = struct
       let typ = Type.fun_ ~params:param_types ~ret:ret_type in
       let body = Stmt.build_ast body in
       (fun_) ~loc ~ident ~params ~typ ~body ~pure
+    | Fun_expr { loc; ident; params; ret_type; body } ->
+      let params, param_types = List.unzip params in
+      let param_types = List.map param_types ~f:Type.of_type_expr in
+      let ret_type = Type.of_type_expr ret_type in
+      let typ = Type.fun_ ~params:param_types ~ret:ret_type in
+      let body = Expr.build_ast body in
+      fun_expr ~loc ~ident ~params ~typ ~body
 end
 
 type t = Decl.t list

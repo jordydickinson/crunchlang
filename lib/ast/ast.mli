@@ -108,6 +108,13 @@ module Decl : sig
         body: Stmt.t;
         pure: bool [@sexp.bool];
       }
+    | Fun_expr of {
+        loc: Srcloc.t;
+        ident: string;
+        params: (string * Type_expr.t) list;
+        ret_type: Type_expr.t;
+        body: Expr.t;
+      }
   [@@deriving sexp_of, variants]
 
   val loc : t -> Srcloc.t

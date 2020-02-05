@@ -118,11 +118,19 @@ module Decl = struct
         body: Stmt.t;
         pure: bool [@sexp.bool];
       }
+    | Fun_expr of {
+        loc: Srcloc.t;
+        ident: string;
+        params: (string * Type_expr.t) list;
+        ret_type: Type_expr.t;
+        body: Expr.t;
+      }
   [@@deriving sexp_of, variants]
 
   let loc = function
     | Let { loc; _ }
-    | Fun { loc; _ } -> loc
+    | Fun { loc; _ }
+    | Fun_expr { loc; _ } -> loc
 end
 
 type t = Decl.t list

@@ -162,7 +162,6 @@ let codegen_cf module_ (cf: Control_flow.t) =
   let add_ctor ctor = Stack.push ctors ctor in
 
   let finish_ctors () =
-    if Stack.is_empty ctors then ();
     let init_ctors_func = define_function "init.ctors" ctor_type module_ in
     let init_entry = entry_block init_ctors_func in
     let builder = builder_at_end (module_context module_) init_entry in
@@ -191,12 +190,21 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_ret_void ctor_builder : llvalue);
       add_ctor ctor_func;
       Hashtbl.set names ~key:ident ~data:(Pointer global);
+    | Fun_expr { ident; params; typ; body; _ } ->
+      let func = define_function ident (codegen_type typ) module_ in
+      Hashtbl.set names ~key:ident ~data:(Value func);
+      List.iteri params ~f:begin fun i ident ->
+        let value = param func i in
+        set_value_name ident value;
+        Hashtbl.set names ~key:ident ~data:(Value value);
+      end;
+      let entry = entry_block func in
+      let builder = builder_at_end (module_context module_) entry in
+      let value = codegen_rvalue body ~builder in
+      ignore (build_ret value builder : llvalue)
     | Fun { loc = _; ident; params; typ; body; _ } ->
       (* Definition *)
-      let func = define_function
-          (String.chop_suffix_exn ~suffix:"!" ident)
-          (codegen_type typ)
-          module_ in
+      let func = define_function ident (codegen_type typ) module_ in
       List.iteri params ~f:begin fun i ident ->
         let value = param func i in
         set_value_name ident value;
