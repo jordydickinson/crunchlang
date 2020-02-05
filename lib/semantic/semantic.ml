@@ -2,22 +2,32 @@ exception Unbound_identifier of {
     loc: Srcloc.t;
     ident: string;
   }
+[@@deriving sexp]
+
+exception Unbound_type of {
+    loc: Srcloc.t;
+    ident: string;
+  }
+[@@deriving sexp]
 
 exception Type_error of {
     loc: Srcloc.t;
     expected: Type.t list;
     got: Type.t;
   }
+[@@deriving sexp]
 
 exception Arity_mismatch of {
     loc: Srcloc.t;
     expected: int;
     got: int;
   }
+[@@deriving sexp]
 
 exception Purity_error of {
     loc: Srcloc.t
   }
+[@@deriving sexp]
 
 module Env : sig
   type binding = {
@@ -33,24 +43,63 @@ module Env : sig
 
   val typeof : t -> string -> Type.t option
 
+  val lookup_type : t -> string -> Type.t option
+
   val bind : t -> ident:string -> typ:Type.t -> pure:bool -> t
+
+  val bind_type : t -> ident:string -> typ:Type.t -> t
 end = struct
   type binding = {
     typ: Type.t;
     pure: bool;
   }
 
-  type t = binding String.Map.t
+  type t = {
+    vars: binding String.Map.t;
+    types: Type.t String.Map.t;
+  }
 
-  let empty = String.Map.empty
+  let empty = {
+    vars = String.Map.empty;
+    types = String.Map.empty;
+  }
 
-  let lookup env ident = Map.find env ident
+  let lookup env ident = Map.find env.vars ident
 
   let typeof env ident =
     Option.map (lookup env ident) ~f:(function { typ; _ } -> typ)
 
+  let lookup_type env ident =
+    Map.find env.types ident
+
   let bind env ~ident ~typ ~pure =
-    Map.set env ~key:ident ~data:{ typ; pure }
+    { env with vars = Map.set env.vars ~key:ident ~data:{ typ; pure } }
+
+  let bind_type env ~ident ~typ =
+    { env with types = Map.set env.types ~key:ident ~data:typ }
+end
+
+module Type = struct
+  include Type
+
+  type builder = Env.t -> t
+
+  let fun_ ~params ~ret = fun env ->
+    let ret = ret env in
+    let params = List.map params ~f:(fun param -> param env) in
+    fun_ ~params ~ret
+
+  let build_ast (type_expr: Ast.Type_expr.t) = fun env ->
+    match type_expr with
+    | Void _ -> void
+    | Bool _ -> bool
+    | Int64 _ -> int64
+    | Float _ -> float
+    | Name { loc; ident } ->
+      begin match Env.lookup_type env ident with
+        | None -> raise @@ Unbound_type { loc; ident }
+        | Some typ -> typ
+      end
 end
 
 module Expr = struct
@@ -180,6 +229,7 @@ module Expr = struct
     (let_in) ~loc:loc' ~ident ~binding ~body
 
   let let_in ?binding_type ~loc ~ident ~binding ~body = fun env ->
+    let binding_type = Option.map binding_type ~f:(fun typ -> typ env) in
     let binding = binding env in
     let env = Env.bind env ~ident ~typ:(typ binding) ~pure:true in
     let body = body env in
@@ -200,7 +250,7 @@ module Expr = struct
       let args = List.map args ~f:build_ast in
       call ~loc ~callee ~args
     | Let_in { loc; ident; typ; binding; body } ->
-      let binding_type = Option.map ~f:Type.of_type_expr typ in
+      let binding_type = Option.map ~f:Type.build_ast typ in
       let binding = build_ast binding in
       let body = build_ast body in
       (let_in) ~loc ~ident ?binding_type ~binding ~body
@@ -294,6 +344,7 @@ module Stmt = struct
     (let_) ~loc ~ident ~typ ~binding
 
   let let_ ~loc ~typ ~ident ~binding = fun env ->
+    let typ = Option.map typ ~f:(fun typ -> typ env) in
     let binding = binding env in
     let typ = Option.value typ ~default:(Expr.typ binding) in
     let env = Env.bind env ~ident ~typ:(Expr.typ binding) ~pure:true in
@@ -304,6 +355,7 @@ module Stmt = struct
     var ~loc ~ident ~typ ~binding
 
   let var ~loc ~typ ~ident ~binding = fun env ->
+    let typ = Option.map typ ~f:(fun typ -> typ env) in
     let binding = binding env in
     let typ = Option.value typ ~default:(Expr.typ binding) in
     let env = Env.bind env ~ident ~typ:(Expr.typ binding) ~pure:false in
@@ -338,11 +390,11 @@ module Stmt = struct
       let src = Expr.build_ast src in
       assign ~loc ~dst ~src
     | Let { loc; ident; typ; binding } ->
-      let typ = Option.map ~f:Type.of_type_expr typ in
+      let typ = Option.map ~f:Type.build_ast typ in
       let binding = Expr.build_ast binding in
       (let_) ~loc ~ident ~typ ~binding
     | Var { loc; ident; typ; binding } ->
-      let typ = Option.map ~f:Type.of_type_expr typ in
+      let typ = Option.map ~f:Type.build_ast typ in
       let binding = Expr.build_ast binding in
       var ~loc ~ident ~typ ~binding
     | If { loc; cond; iftrue; iffalse } ->
@@ -357,6 +409,11 @@ end
 
 module Decl = struct
   type t =
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -382,10 +439,10 @@ module Decl = struct
 
   type builder = Env.t -> t * Env.t
 
-  let typ = function
-    | Let { typ; _ }
-    | Fun { typ; _ }
-    | Fun_expr { typ; _ } -> typ
+  let type_ ~loc ~ident ~binding = fun env ->
+    let binding = binding env in
+    let env = Env.bind_type env ~ident ~typ:binding in
+    type_ ~loc ~ident ~binding, env
 
   let let_ ~loc ~ident ~typ ~binding =
     if Fn.non Expr.is_pure binding
@@ -394,6 +451,7 @@ module Decl = struct
     (let_) ~loc ~ident ~typ ~binding
 
   let let_ ~loc ~ident ~typ ~binding = fun env ->
+    let typ = typ env in
     let binding = binding env in
     let env = Env.bind env ~ident ~typ ~pure:true in
     (let_) ~loc ~ident ~typ ~binding, env
@@ -404,6 +462,7 @@ module Decl = struct
     fun_ ~loc ~ident ~params ~typ ~body ~pure
 
   let fun_ ~loc ~ident ~params ~typ ~body ~pure = fun env ->
+    let typ = typ env in
     let env = Env.bind env ~ident ~typ ~pure in
     let env' = Env.bind env ~ident:"return" ~typ:(Type.ret_exn typ) ~pure:true in
     let env' = List.fold2_exn params (Type.params_exn typ) ~init:env'
@@ -418,6 +477,7 @@ module Decl = struct
     fun_expr ~loc ~ident ~params ~typ ~body
 
   let fun_expr ~loc ~ident ~params ~typ ~body = fun env ->
+    let typ = typ env in
     let env = Env.bind env ~ident ~typ ~pure:true in
     let env' = List.fold2_exn params (Type.params_exn typ) ~init:env
         ~f:(fun env ident typ -> Env.bind env ~ident ~typ ~pure:true) in
@@ -426,27 +486,30 @@ module Decl = struct
 
   let build_ast (decl: Ast.Decl.t) =
     match decl with
-    | Type _ -> assert false
+    | Type { loc; ident; binding } ->
+      let binding = Type.build_ast binding in
+      (type_) ~loc ~ident ~binding
     | Let { loc; ident; typ; binding } ->
-      (let_) ~loc ~ident ~typ:(Type.of_type_expr typ)
+      (let_) ~loc ~ident ~typ:(Type.build_ast typ)
         ~binding:(Expr.build_ast binding)
     | Fun { loc; ident; params; ret_type; body; pure } ->
       let params, param_types = List.unzip params in
-      let param_types = List.map param_types ~f:Type.of_type_expr in
-      let ret_type = Type.of_type_expr ret_type in
+      let param_types = List.map param_types ~f:Type.build_ast in
+      let ret_type = Type.build_ast ret_type in
       let typ = Type.fun_ ~params:param_types ~ret:ret_type in
       let body = Stmt.build_ast body in
       (fun_) ~loc ~ident ~params ~typ ~body ~pure
     | Fun_expr { loc; ident; params; ret_type; body } ->
       let params, param_types = List.unzip params in
-      let param_types = List.map param_types ~f:Type.of_type_expr in
-      let ret_type = Type.of_type_expr ret_type in
+      let param_types = List.map param_types ~f:Type.build_ast in
+      let ret_type = Type.build_ast ret_type in
       let typ = Type.fun_ ~params:param_types ~ret:ret_type in
       let body = Expr.build_ast body in
       fun_expr ~loc ~ident ~params ~typ ~body
 end
 
 type t = Decl.t list
+[@@deriving sexp_of]
 
 type builder = Env.t -> Decl.t list * Env.t
 

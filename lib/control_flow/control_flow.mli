@@ -49,6 +49,11 @@ end
 
 module Decl : sig
   type t = private
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;

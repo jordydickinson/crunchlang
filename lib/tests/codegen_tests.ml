@@ -630,3 +630,26 @@ let%expect_test _ =
     entry:
       ret void
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    type t = int64;
+
+    fun add(x: t, y: t): t = x + y;
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define i64 @add(i64 %x, i64 %y) {
+    entry:
+      %addtmp = add i64 %x, %y
+      ret i64 %addtmp
+    }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]

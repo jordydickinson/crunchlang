@@ -1,23 +1,44 @@
+exception Unbound_identifier of {
+    loc: Srcloc.t;
+    ident: string;
+  }
+[@@deriving sexp]
+
 exception Type_error of {
     loc: Srcloc.t;
     expected: Type.t list;
     got: Type.t;
   }
+[@@deriving sexp]
+
+exception Unbound_type of {
+    loc: Srcloc.t;
+    ident: string;
+  }
+[@@deriving sexp]
 
 exception Arity_mismatch of {
     loc: Srcloc.t;
     expected: int;
     got: int;
   }
+[@@deriving sexp]
 
 exception Purity_error of {
     loc: Srcloc.t
   }
+[@@deriving sexp]
 
 module Env : sig
   type t
 
   val empty : t
+end
+
+module Type : sig
+  type t = Type.t
+
+  type builder = Env.t -> t
 end
 
 module Expr : sig
@@ -77,7 +98,7 @@ module Expr : sig
   val name : loc:Srcloc.t -> ident:string -> builder
   val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
   val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
-  val let_in : ?binding_type:Type.t -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
+  val let_in : ?binding_type:Type.builder -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
 end
 
 module Stmt : sig
@@ -118,8 +139,8 @@ module Stmt : sig
   val expr : Expr.builder -> builder
   val block : builder list -> builder
   val assign : loc:Srcloc.t -> dst:Expr.builder -> src:Expr.builder -> builder
-  val let_ : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
-  val var : loc:Srcloc.t -> typ:Type.t option -> ident:string -> binding:Expr.builder -> builder
+  val let_ : loc:Srcloc.t -> typ:Type.builder option -> ident:string -> binding:Expr.builder -> builder
+  val var : loc:Srcloc.t -> typ:Type.builder option -> ident:string -> binding:Expr.builder -> builder
   val if_ : loc:Srcloc.t -> cond:Expr.builder -> iftrue:builder -> iffalse:builder option -> builder
   val return : loc:Srcloc.t -> arg:Expr.builder option -> builder
 
@@ -128,6 +149,11 @@ end
 
 module Decl : sig
   type t = private
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -153,13 +179,12 @@ module Decl : sig
 
   type builder
 
-  val let_ : loc:Srcloc.t -> ident:string -> typ:Type.t -> binding:Expr.builder -> builder
-  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.t -> body:Stmt.builder -> pure:bool -> builder
-
-  val typ : t -> Type.t
+  val let_ : loc:Srcloc.t -> ident:string -> typ:Type.builder -> binding:Expr.builder -> builder
+  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.builder -> body:Stmt.builder -> pure:bool -> builder
 end
 
 type t = Decl.t list
+[@@deriving sexp_of]
 
 type builder
 

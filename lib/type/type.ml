@@ -9,14 +9,6 @@ type t =
     }
 [@@deriving equal, sexp_of, variants]
 
-let of_type_expr (type_expr: Ast.Type_expr.t) =
-  match type_expr with
-  | Void _ -> Void
-  | Bool _ -> Bool
-  | Int64 _ -> Int64
-  | Float _ -> Float
-  | Name _ -> assert false
-
 let is_fun = function
   | Fun _ -> true
   | _ -> false

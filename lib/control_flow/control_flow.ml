@@ -100,6 +100,11 @@ end
 
 module Decl = struct
   type t =
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -125,6 +130,8 @@ module Decl = struct
 
   let of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
+    | Type { loc; ident; binding } ->
+      Type { loc; ident; binding }
     | Let { loc; ident; typ; binding } ->
       Let { loc; ident; typ; binding }
     | Fun { loc; ident; params; typ; body; pure } ->

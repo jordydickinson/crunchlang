@@ -9,8 +9,6 @@ type t = private
     }
 [@@deriving equal, sexp_of, variants]
 
-val of_type_expr : Ast.Type_expr.t -> t
-
 val is_fun : t -> bool
 
 val ret_exn : t -> t
