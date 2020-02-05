@@ -15,6 +15,7 @@ let of_type_expr (type_expr: Ast.Type_expr.t) =
   | Bool _ -> Bool
   | Int64 _ -> Int64
   | Float _ -> Float
+  | Name _ -> assert false
 
 let is_fun = function
   | Fun _ -> true

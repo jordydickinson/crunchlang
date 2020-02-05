@@ -138,6 +138,10 @@ let%expect_test _ =
 (*** Declarations ***)
 
 let%expect_test _ =
+  print_parse_decl "type t = int64;";
+  [%expect {| (Type (loc (:1:0 :1:15)) (ident t) (binding (Int64 (loc (:1:9 :1:14))))) |}]
+
+let%expect_test _ =
   print_parse_decl "fun nop!(): void {}";
   [%expect {|
     (Fun (loc (:1:0 :1:19)) (ident nop!) (params ())

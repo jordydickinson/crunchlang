@@ -4,6 +4,7 @@ module Type_expr : sig
     | Bool of { loc: Srcloc.t }
     | Int64 of { loc: Srcloc.t }
     | Float of { loc: Srcloc.t }
+    | Name of { loc: Srcloc.t; ident: string }
   [@@deriving sexp_of, variants]
 end
 
@@ -94,6 +95,11 @@ end
 
 module Decl : sig
   type t = private
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type_expr.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;

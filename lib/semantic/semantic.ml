@@ -426,6 +426,7 @@ module Decl = struct
 
   let build_ast (decl: Ast.Decl.t) =
     match decl with
+    | Type _ -> assert false
     | Let { loc; ident; typ; binding } ->
       (let_) ~loc ~ident ~typ:(Type.of_type_expr typ)
         ~binding:(Expr.build_ast binding)

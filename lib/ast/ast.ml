@@ -4,6 +4,7 @@ module Type_expr = struct
     | Bool of { loc: Srcloc.t }
     | Int64 of { loc: Srcloc.t }
     | Float of { loc: Srcloc.t }
+    | Name of { loc: Srcloc.t; ident: string }
   [@@deriving sexp_of, variants]
 end
 
@@ -104,6 +105,11 @@ end
 
 module Decl = struct
   type t =
+    | Type of {
+        loc: Srcloc.t;
+        ident: string;
+        binding: Type_expr.t;
+      }
     | Let of {
         loc: Srcloc.t;
         ident: string;
@@ -128,6 +134,7 @@ module Decl = struct
   [@@deriving sexp_of, variants]
 
   let loc = function
+    | Type { loc; _ }
     | Let { loc; _ }
     | Fun { loc; _ }
     | Fun_expr { loc; _ } -> loc

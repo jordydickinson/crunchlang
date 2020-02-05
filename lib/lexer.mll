@@ -16,6 +16,7 @@ rule read =
   parse
   | white { read lexbuf }
 
+  | "type" { KW_TYPE }
   | "fun" { KW_FUN }
   | "let" { KW_LET }
   | "var" { KW_VAR }

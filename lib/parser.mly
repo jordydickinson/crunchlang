@@ -11,6 +11,7 @@
 %token<string> BANG_IDENT
 
 (* Keywords *)
+%token KW_TYPE "type"
 %token KW_FUN "fun"
 %token KW_LET "let"
 %token KW_VAR "var"
@@ -67,6 +68,8 @@ expr_eof:
   ;
 
 decl:
+  | "type"; ident = IDENT; "="; binding = type_expr; ";"
+    { Decl.type_ ~loc:$loc ~ident ~binding }
   | "let"; ident = IDENT; typ = type_annot; "="; binding = expr; ";"
     { Decl.let_ ~loc:$loc ~ident ~typ ~binding }
   | "fun"; ident = BANG_IDENT;
@@ -152,6 +155,7 @@ type_expr:
   | "bool" { Type_expr.bool ~loc:$loc }
   | "int64" { Type_expr.int64 ~loc:$loc }
   | "float" { Type_expr.float ~loc:$loc }
+  | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
   ;
 
 %%
