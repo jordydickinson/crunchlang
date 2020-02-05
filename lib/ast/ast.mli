@@ -29,6 +29,10 @@ module Expr : sig
         loc: Srcloc.t;
         ident: string;
       }
+    | Array of {
+        loc: Srcloc.t;
+        elts: t array;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;

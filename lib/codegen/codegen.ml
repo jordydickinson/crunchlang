@@ -86,17 +86,21 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float { value; _ } ->
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
+    | Array { elts; elt_type; _ } ->
+      let elt_type = codegen_type elt_type in
+      let size = const_int (i32_type @@ module_context module_) (Array.length elts) in
+      let pointer = build_array_malloc elt_type size "malloctmp" builder in
+      let elts = Array.map elts ~f:codegen_rvalue in
+      ignore (build_store (const_array elt_type elts) pointer builder : llvalue);
+      pointer
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in
       build_call callee args "calltmp" builder
     | Let_in { ident; binding; body; _ } ->
-      let typ = Expr.typ expr in
-      let pointer = build_alloca (codegen_type typ) ident builder in
       let binding = codegen_rvalue binding in
-      ignore (build_store binding pointer builder : llvalue);
-      Hashtbl.set names ~key:ident ~data:(Pointer pointer);
+      Hashtbl.set names ~key:ident ~data:(Value binding);
       codegen_rvalue body
   in
 
@@ -108,8 +112,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let binding = codegen_rvalue binding ~builder in
       Hashtbl.set names ~key:ident ~data:(Value binding)
     | Var { ident; binding; typ; _ } ->
-      let binding = codegen_rvalue binding ~builder in
       let pointer = build_alloca (codegen_type typ) ident builder in
+      let binding = codegen_rvalue binding ~builder in
       ignore (build_store binding pointer builder : llvalue);
       Hashtbl.set names ~key:ident ~data:(Pointer pointer)
     | Assign { dst; src; _ } ->

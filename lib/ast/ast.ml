@@ -29,6 +29,10 @@ module Expr = struct
         loc: Srcloc.t;
         ident: string;
       }
+    | Array of {
+        loc: Srcloc.t;
+        elts: t array;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;
@@ -56,6 +60,7 @@ module Expr = struct
     | Bool { loc; _ }
     | Float { loc; _ }
     | Name { loc; _ }
+    | Array { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ } -> loc

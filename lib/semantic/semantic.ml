@@ -152,6 +152,11 @@ module Expr = struct
         typ: Type.t;
         pure: bool;
       }
+    | Array of {
+        loc: Srcloc.t;
+        elts: t array;
+        elt_type: Type.t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;
@@ -178,6 +183,7 @@ module Expr = struct
     | Bool { loc; _ }
     | Float { loc; _ }
     | Name { loc; _ }
+    | Array { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ } -> loc
@@ -186,6 +192,7 @@ module Expr = struct
     | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
+    | Array { elt_type; _ } -> Type.array elt_type
     | Name { typ; _ } -> typ
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
@@ -195,6 +202,8 @@ module Expr = struct
     | Int _ | Bool _ | Float _ -> String.Set.empty
     | Name { ident; pure; _ } ->
       if pure then String.Set.empty else String.Set.singleton ident
+    | Array { elts; _ } ->
+      String.Set.union_list (Array.map elts ~f:impurities |> Array.to_list)
     | Binop { lhs; rhs; _ } -> Set.union (impurities lhs) (impurities rhs)
     | Call { callee; args; _ } ->
       String.Set.union_list (impurities callee :: List.map ~f:impurities args)
@@ -223,6 +232,21 @@ module Expr = struct
     match Env.lookup env ident with
     | Some { typ; pure } -> name ~loc ~ident ~typ ~pure
     | None -> raise @@ Unbound_identifier { loc; ident }
+
+  let array ~loc ~elts =
+    if Array.is_empty elts then
+      array ~loc ~elts ~elt_type:Type.void
+    else begin
+      let elt_type = typ elts.(0) in
+      for i = 1 to Array.length elts - 1 do
+        typecheck ~typ:elt_type elts.(i)
+      done;
+      array ~loc ~elts ~elt_type
+    end
+
+  let array ~loc ~elts = fun env ->
+    let elts = Array.map elts ~f:(fun elt -> elt env) in
+    array ~loc ~elts
 
   let binop ~loc ~op:Bop.Add ~lhs ~rhs =
     typecheck_or lhs ~types:[Type.int64; Type.float];
@@ -269,6 +293,7 @@ module Expr = struct
     | Bool { loc; value } -> bool ~loc ~value
     | Float { loc; value } -> float ~loc ~value
     | Name { loc; ident } -> name ~loc ~ident
+    | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:build_ast)
     | Binop { loc; op; lhs; rhs } ->
       let lhs = build_ast lhs in
       let rhs = build_ast rhs in

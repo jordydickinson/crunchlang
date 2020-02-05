@@ -87,6 +87,24 @@ let%expect_test _ =
       (Binop (loc (:1:5 :1:10)) (op Add) (lhs (Name (loc (:1:5 :1:6)) (ident y)))
        (rhs (Name (loc (:1:9 :1:10)) (ident z)))))) |}]
 
+let%expect_test _ =
+  print_parse_expr "let xs = {} in xs";
+  [%expect {|
+    (Let_in (loc (:1:0 :1:17)) (ident xs)
+     (binding (Array (loc (:1:9 :1:11)) (elts ())))
+     (body (Name (loc (:1:15 :1:17)) (ident xs)))) |}]
+
+let%expect_test _ =
+  print_parse_expr "let xs = {1, 2, 3} in xs";
+  [%expect {|
+    (Let_in (loc (:1:0 :1:24)) (ident xs)
+     (binding
+      (Array (loc (:1:9 :1:18))
+       (elts
+        ((Int (loc (:1:10 :1:11)) (value 1)) (Int (loc (:1:13 :1:14)) (value 2))
+         (Int (loc (:1:16 :1:17)) (value 3))))))
+     (body (Name (loc (:1:22 :1:24)) (ident xs)))) |}]
+
 (*** Statements ***)
 
 let%expect_test _ =

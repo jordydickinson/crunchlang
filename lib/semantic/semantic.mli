@@ -64,6 +64,11 @@ module Expr : sig
         typ: Type.t;
         pure: bool;
       }
+    | Array of {
+        loc: Srcloc.t;
+        elts: t array;
+        elt_type: Type.t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;
@@ -97,6 +102,7 @@ module Expr : sig
   val bool : loc:Srcloc.t -> value:bool -> builder
   val float : loc:Srcloc.t -> value:float -> builder
   val name : loc:Srcloc.t -> ident:string -> builder
+  val array : loc:Srcloc.t -> elts:builder array -> builder
   val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
   val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
   val let_in : ?binding_type:Type.builder -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder

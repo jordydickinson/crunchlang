@@ -140,6 +140,7 @@ atom:
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
   | ident = BANG_IDENT { Expr.name ~loc:$loc ~ident }
   | "("; e = expr; ")" { e }
+  | "{"; elts = separated_array(",", expr); "}" { Expr.array ~loc:$loc ~elts }
   ;
 
 type_annot:

@@ -653,3 +653,35 @@ let%expect_test _ =
     entry:
       ret void
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main!(): void {
+      var xs = {1, 2, 3};
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define void @"main!"() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %xs = alloca i64*
+      %malloccall = tail call i8* @malloc(i32 mul (i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32), i32 3))
+      %malloctmp = bitcast i8* %malloccall to i64*
+      store [3 x i64] [i64 1, i64 2, i64 3], i64* %malloctmp
+      store i64* %malloctmp, i64** %xs
+      ret void
+    }
+
+    declare noalias i8* @malloc(i32)
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
