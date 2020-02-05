@@ -1,9 +1,5 @@
 module Type_expr : sig
   type t = private
-    | Void of { loc: Srcloc.t }
-    | Bool of { loc: Srcloc.t }
-    | Int64 of { loc: Srcloc.t }
-    | Float of { loc: Srcloc.t }
     | Name of { loc: Srcloc.t; ident: string }
   [@@deriving sexp_of, variants]
 end

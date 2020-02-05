@@ -241,5 +241,5 @@ let codegen_cf module_ (cf: Control_flow.t) =
   finish_ctors ()
 
 let codegen_ast m ast =
-  let semantic, _ = Semantic.build_ast ast Semantic.Env.empty in
+  let semantic, _ = Semantic.build_ast ast Semantic.Env.prelude in
   codegen_cf m @@ Control_flow.of_semantic semantic

@@ -1,6 +1,6 @@
 let print_parse_semantic s =
   let ast = Driver.parse_prog_string s in
-  let semantic, _ = Semantic.build_ast ast Semantic.Env.empty in
+  let semantic, _ = Semantic.build_ast ast Semantic.Env.prelude in
   print_s @@ Semantic.sexp_of_t semantic
 
 let%expect_test _ =

@@ -20,12 +20,6 @@
 %token KW_ELSE "else"
 %token KW_RETURN "return"
 
-(* Types *)
-%token KW_VOID "void"
-%token KW_BOOL "bool"
-%token KW_INT64 "int64"
-%token KW_FLOAT "float"
-
 (* Booleans *)
 %token KW_TRUE "true"
 %token KW_FALSE "false"
@@ -151,10 +145,6 @@ type_annot:
   ;
 
 type_expr:
-  | "void" { Type_expr.void ~loc:$loc }
-  | "bool" { Type_expr.bool ~loc:$loc }
-  | "int64" { Type_expr.int64 ~loc:$loc }
-  | "float" { Type_expr.float ~loc:$loc }
   | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
   ;
 

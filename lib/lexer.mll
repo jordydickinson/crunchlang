@@ -25,11 +25,6 @@ rule read =
   | "else" { KW_ELSE }
   | "return" { KW_RETURN }
 
-  | "void" { KW_VOID }
-  | "bool" { KW_BOOL }
-  | "int64" { KW_INT64 }
-  | "float" { KW_FLOAT }
-
   | "true" { KW_TRUE }
   | "false" { KW_FALSE }
 

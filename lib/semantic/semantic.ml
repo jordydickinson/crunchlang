@@ -39,6 +39,8 @@ module Env : sig
 
   val empty : t
 
+  val prelude : t
+
   val lookup : t -> string -> binding option
 
   val typeof : t -> string -> Type.t option
@@ -77,6 +79,13 @@ end = struct
 
   let bind_type env ~ident ~typ =
     { env with types = Map.set env.types ~key:ident ~data:typ }
+
+  let prelude =
+    empty
+    |> bind_type ~ident:"void" ~typ:Type.void
+    |> bind_type ~ident:"int64" ~typ:Type.int64
+    |> bind_type ~ident:"bool" ~typ:Type.bool
+    |> bind_type ~ident:"float" ~typ:Type.float
 end
 
 module Type = struct
@@ -91,10 +100,6 @@ module Type = struct
 
   let build_ast (type_expr: Ast.Type_expr.t) = fun env ->
     match type_expr with
-    | Void _ -> void
-    | Bool _ -> bool
-    | Int64 _ -> int64
-    | Float _ -> float
     | Name { loc; ident } ->
       begin match Env.lookup_type env ident with
         | None -> raise @@ Unbound_type { loc; ident }

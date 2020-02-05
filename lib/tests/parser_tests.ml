@@ -108,7 +108,8 @@ let%expect_test _ =
 let%expect_test _ =
   print_parse_stmt "let x: int64 = 1;";
   [%expect {|
-    (Let (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
+    (Let (loc (:1:0 :1:17)) (ident x)
+     (typ (Name (loc (:1:7 :1:12)) (ident int64)))
      (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
 
 let%expect_test _ =
@@ -120,7 +121,8 @@ let%expect_test _ =
 let%expect_test _ =
   print_parse_stmt "var x: int64 = 1;";
   [%expect {|
-    (Var (loc (:1:0 :1:17)) (ident x) (typ (Int64 (loc (:1:7 :1:12))))
+    (Var (loc (:1:0 :1:17)) (ident x)
+     (typ (Name (loc (:1:7 :1:12)) (ident int64)))
      (binding (Int (loc (:1:15 :1:16)) (value 1)))) |}]
 
 let%expect_test _ =
@@ -139,26 +141,31 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_parse_decl "type t = int64;";
-  [%expect {| (Type (loc (:1:0 :1:15)) (ident t) (binding (Int64 (loc (:1:9 :1:14))))) |}]
+  [%expect {|
+    (Type (loc (:1:0 :1:15)) (ident t)
+     (binding (Name (loc (:1:9 :1:14)) (ident int64)))) |}]
 
 let%expect_test _ =
   print_parse_decl "fun nop!(): void {}";
   [%expect {|
     (Fun (loc (:1:0 :1:19)) (ident nop!) (params ())
-     (ret_type (Void (loc (:1:12 :1:16)))) (body (Block ()))) |}]
+     (ret_type (Name (loc (:1:12 :1:16)) (ident void))) (body (Block ()))) |}]
 
 let%expect_test _ =
   print_parse_decl "fun nop(): void {}";
   [%expect {|
     (Fun (loc (:1:0 :1:18)) (ident nop) (params ())
-     (ret_type (Void (loc (:1:11 :1:15)))) (body (Block ())) (pure)) |}]
+     (ret_type (Name (loc (:1:11 :1:15)) (ident void))) (body (Block ()))
+     (pure)) |}]
 
 let%expect_test _ =
   print_parse_decl "fun add(x: int64, y: int64): int64 = x + y;";
   [%expect {|
     (Fun_expr (loc (:1:0 :1:43)) (ident add)
-     (params ((x (Int64 (loc (:1:11 :1:16)))) (y (Int64 (loc (:1:21 :1:26))))))
-     (ret_type (Int64 (loc (:1:29 :1:34))))
+     (params
+      ((x (Name (loc (:1:11 :1:16)) (ident int64)))
+       (y (Name (loc (:1:21 :1:26)) (ident int64)))))
+     (ret_type (Name (loc (:1:29 :1:34)) (ident int64)))
      (body
       (Binop (loc (:1:37 :1:42)) (op Add)
        (lhs (Name (loc (:1:37 :1:38)) (ident x)))
