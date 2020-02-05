@@ -41,6 +41,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Bool -> i1_type (module_context module_)
     | Int64 -> i64_type (module_context module_)
     | Float -> double_type (module_context module_)
+    | Array elt -> pointer_type (codegen_type elt)
     | Fun { params; ret } ->
       function_type (codegen_type ret)
       @@ Array.of_list_map params ~f:codegen_type

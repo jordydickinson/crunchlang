@@ -32,6 +32,8 @@
 %token RPAREN ")"
 %token LBRACE "{"
 %token RBRACE "}"
+%token LANGLE "<"
+%token RANGLE ">"
 %token COMMA ","
 %token SEMI ";"
 %token COLON ":"
@@ -146,6 +148,12 @@ type_annot:
 
 type_expr:
   | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
+  | ident = IDENT; "<"; args = separated_array(",", type_expr); ">"
+    { Type_expr.apply ~loc:$loc ~ident ~args }
+  ;
+
+separated_array(sep, term):
+  | terms = separated_list(sep, term) { Array.of_list terms }
   ;
 
 %%

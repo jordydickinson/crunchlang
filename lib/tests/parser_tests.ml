@@ -140,12 +140,6 @@ let%expect_test _ =
 (*** Declarations ***)
 
 let%expect_test _ =
-  print_parse_decl "type t = int64;";
-  [%expect {|
-    (Type (loc (:1:0 :1:15)) (ident t)
-     (binding (Name (loc (:1:9 :1:14)) (ident int64)))) |}]
-
-let%expect_test _ =
   print_parse_decl "fun nop!(): void {}";
   [%expect {|
     (Fun (loc (:1:0 :1:19)) (ident nop!) (params ())
@@ -170,3 +164,19 @@ let%expect_test _ =
       (Binop (loc (:1:37 :1:42)) (op Add)
        (lhs (Name (loc (:1:37 :1:38)) (ident x)))
        (rhs (Name (loc (:1:41 :1:42)) (ident y)))))) |}]
+
+(*** Type Declarations ***)
+
+let%expect_test _ =
+  print_parse_decl "type t = int64;";
+  [%expect {|
+    (Type (loc (:1:0 :1:15)) (ident t)
+     (binding (Name (loc (:1:9 :1:14)) (ident int64)))) |}]
+
+let%expect_test _ =
+  print_parse_decl "type t = array<int64>;";
+  [%expect {|
+    (Type (loc (:1:0 :1:22)) (ident t)
+     (binding
+      (Apply (loc (:1:9 :1:21)) (ident array)
+       (args ((Name (loc (:1:15 :1:20)) (ident int64))))))) |}]

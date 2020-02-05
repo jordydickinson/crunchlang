@@ -3,6 +3,7 @@ type t =
   | Bool
   | Int64
   | Float
+  | Array of t
   | Fun of {
       params: t list;
       ret: t;

@@ -35,30 +35,37 @@ module Env : sig
     pure: bool;
   }
 
+  type type_binding = {
+    n_params: int;
+    constructor: Type.t array -> Type.t
+  }
+
   type t
 
   val empty : t
 
   val prelude : t
 
+  val bind : t -> ident:string -> typ:Type.t -> pure:bool -> t
   val lookup : t -> string -> binding option
-
   val typeof : t -> string -> Type.t option
 
-  val lookup_type : t -> string -> Type.t option
-
-  val bind : t -> ident:string -> typ:Type.t -> pure:bool -> t
-
   val bind_type : t -> ident:string -> typ:Type.t -> t
+  val lookup_type : t -> string -> type_binding option
 end = struct
   type binding = {
     typ: Type.t;
     pure: bool;
   }
 
+  type type_binding = {
+    n_params: int;
+    constructor: Type.t array -> Type.t;
+  }
+
   type t = {
     vars: binding String.Map.t;
-    types: Type.t String.Map.t;
+    types: type_binding String.Map.t;
   }
 
   let empty = {
@@ -71,14 +78,16 @@ end = struct
   let typeof env ident =
     Option.map (lookup env ident) ~f:(function { typ; _ } -> typ)
 
-  let lookup_type env ident =
-    Map.find env.types ident
+  let lookup_type env ident = Map.find env.types ident
 
   let bind env ~ident ~typ ~pure =
     { env with vars = Map.set env.vars ~key:ident ~data:{ typ; pure } }
 
+  let bind_type_constructor env ~ident ~n_params ~constructor =
+    { env with types = Map.set env.types ~key:ident ~data:{ n_params; constructor } }
+
   let bind_type env ~ident ~typ =
-    { env with types = Map.set env.types ~key:ident ~data:typ }
+    bind_type_constructor env ~ident ~n_params:0 ~constructor:(fun _ -> typ)
 
   let prelude =
     empty
@@ -86,25 +95,39 @@ end = struct
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
+    |> bind_type_constructor ~ident:"array" ~n_params:1
+      ~constructor:(fun args -> Type.array args.(0))
 end
 
 module Type = struct
   include Type
 
-  type builder = Env.t -> t
+  module Builder = struct
+    type nonrec t = Env.t -> t
 
-  let fun_ ~params ~ret = fun env ->
-    let ret = ret env in
-    let params = List.map params ~f:(fun param -> param env) in
-    fun_ ~params ~ret
+    let fun_ ~params ~ret = fun env ->
+      let ret = ret env in
+      let params = List.map params ~f:(fun param -> param env) in
+      fun_ ~params ~ret
 
-  let build_ast (type_expr: Ast.Type_expr.t) = fun env ->
-    match type_expr with
-    | Name { loc; ident } ->
-      begin match Env.lookup_type env ident with
-        | None -> raise @@ Unbound_type { loc; ident }
-        | Some typ -> typ
-      end
+    let rec of_ast (type_expr: Ast.Type_expr.t) = fun env ->
+      let loc, ident, args =
+        match type_expr with
+        | Apply { loc; ident; args } -> loc, ident, args
+        | Name { loc; ident } -> loc, ident, [||] in
+      match Env.lookup_type env ident with
+      | None -> raise @@ Unbound_type { loc; ident }
+      | Some { n_params; constructor } when n_params = Array.length args ->
+        constructor (Array.map args ~f:(fun arg -> of_ast arg env))
+      | Some { n_params; _ } ->
+        raise @@ Arity_mismatch {
+          loc;
+          expected = n_params;
+          got = Array.length args
+        }
+  end
+
+  type builder = Builder.t
 end
 
 module Expr = struct
@@ -255,7 +278,7 @@ module Expr = struct
       let args = List.map args ~f:build_ast in
       call ~loc ~callee ~args
     | Let_in { loc; ident; typ; binding; body } ->
-      let binding_type = Option.map ~f:Type.build_ast typ in
+      let binding_type = Option.map ~f:Type.Builder.of_ast typ in
       let binding = build_ast binding in
       let body = build_ast body in
       (let_in) ~loc ~ident ?binding_type ~binding ~body
@@ -395,11 +418,11 @@ module Stmt = struct
       let src = Expr.build_ast src in
       assign ~loc ~dst ~src
     | Let { loc; ident; typ; binding } ->
-      let typ = Option.map ~f:Type.build_ast typ in
+      let typ = Option.map ~f:Type.Builder.of_ast typ in
       let binding = Expr.build_ast binding in
       (let_) ~loc ~ident ~typ ~binding
     | Var { loc; ident; typ; binding } ->
-      let typ = Option.map ~f:Type.build_ast typ in
+      let typ = Option.map ~f:Type.Builder.of_ast typ in
       let binding = Expr.build_ast binding in
       var ~loc ~ident ~typ ~binding
     | If { loc; cond; iftrue; iffalse } ->
@@ -492,23 +515,23 @@ module Decl = struct
   let build_ast (decl: Ast.Decl.t) =
     match decl with
     | Type { loc; ident; binding } ->
-      let binding = Type.build_ast binding in
+      let binding = Type.Builder.of_ast binding in
       (type_) ~loc ~ident ~binding
     | Let { loc; ident; typ; binding } ->
-      (let_) ~loc ~ident ~typ:(Type.build_ast typ)
+      (let_) ~loc ~ident ~typ:(Type.Builder.of_ast typ)
         ~binding:(Expr.build_ast binding)
     | Fun { loc; ident; params; ret_type; body; pure } ->
       let params, param_types = List.unzip params in
-      let param_types = List.map param_types ~f:Type.build_ast in
-      let ret_type = Type.build_ast ret_type in
-      let typ = Type.fun_ ~params:param_types ~ret:ret_type in
+      let param_types = List.map param_types ~f:Type.Builder.of_ast in
+      let ret_type = Type.Builder.of_ast ret_type in
+      let typ = Type.Builder.fun_ ~params:param_types ~ret:ret_type in
       let body = Stmt.build_ast body in
       (fun_) ~loc ~ident ~params ~typ ~body ~pure
     | Fun_expr { loc; ident; params; ret_type; body } ->
       let params, param_types = List.unzip params in
-      let param_types = List.map param_types ~f:Type.build_ast in
-      let ret_type = Type.build_ast ret_type in
-      let typ = Type.fun_ ~params:param_types ~ret:ret_type in
+      let param_types = List.map param_types ~f:Type.Builder.of_ast in
+      let ret_type = Type.Builder.of_ast ret_type in
+      let typ = Type.Builder.fun_ ~params:param_types ~ret:ret_type in
       let body = Expr.build_ast body in
       fun_expr ~loc ~ident ~params ~typ ~body
 end
