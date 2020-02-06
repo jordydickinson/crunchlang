@@ -671,11 +671,17 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %xs = alloca i64*
-      %malloccall = tail call i8* @malloc(i32 mul (i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32), i32 3))
-      %malloctmp = bitcast i8* %malloccall to i64*
-      store [3 x i64] [i64 1, i64 2, i64 3], i64* %malloctmp
-      store i64* %malloctmp, i64** %xs
+      %xs = alloca { i32*, i64* }
+      %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+      %arraysize = bitcast i8* %malloccall to i32*
+      store i32 3, i32* %arraysize
+      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32), i32 3))
+      %arrayelts = bitcast i8* %malloccall1 to i64*
+      store [3 x i64] [i64 1, i64 2, i64 3], i64* %arrayelts
+      %malloccall2 = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i64), i64 2) to i32))
+      %arraybox = bitcast i8* %malloccall2 to { i32*, i64* }*
+      store { i32*, i64* } { i32* %arraysize, i64* %arrayelts }, { i32*, i64* }* %arraybox
+      store { i32*, i64* }* %arraybox, { i32*, i64* }* %xs
       ret void
     }
 

@@ -36,12 +36,17 @@ let codegen_cf module_ (cf: Control_flow.t) =
   let names = String.Table.create () in
 
   let rec codegen_type (typ: Type.t) =
+    let codegen_array_type (elt: Type.t) =
+      let elts_type = pointer_type @@ codegen_type elt in
+      let size_type = pointer_type @@ i32_type @@ module_context module_ in
+      struct_type (module_context module_) [|size_type; elts_type|]
+    in
     match typ with
     | Void -> void_type (module_context module_)
     | Bool -> i1_type (module_context module_)
     | Int64 -> i64_type (module_context module_)
     | Float -> double_type (module_context module_)
-    | Array elt -> pointer_type (codegen_type elt)
+    | Array elt -> codegen_array_type elt
     | Fun { params; ret } ->
       function_type (codegen_type ret)
       @@ Array.of_list_map params ~f:codegen_type
@@ -87,12 +92,19 @@ let codegen_cf module_ (cf: Control_flow.t) =
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
     | Array { elts; elt_type; _ } ->
+      let typ = codegen_type @@ Expr.typ expr in
+      let size_type = i32_type @@ module_context module_ in
+      let size_pointer = build_malloc size_type "arraysize" builder in
+      let size = const_int size_type (Array.length elts) in
+      ignore (build_store size size_pointer builder : llvalue);
       let elt_type = codegen_type elt_type in
-      let size = const_int (i32_type @@ module_context module_) (Array.length elts) in
-      let pointer = build_array_malloc elt_type size "malloctmp" builder in
-      let elts = Array.map elts ~f:codegen_rvalue in
-      ignore (build_store (const_array elt_type elts) pointer builder : llvalue);
-      pointer
+      let elts_pointer = build_array_malloc elt_type size "arrayelts" builder in
+      let elts = const_array elt_type @@ Array.map elts ~f:codegen_rvalue in
+      ignore (build_store elts elts_pointer builder : llvalue);
+      let box_pointer = build_malloc typ "arraybox" builder in
+      let box = const_struct (module_context module_) [|size_pointer; elts_pointer|] in
+      ignore (build_store box box_pointer builder : llvalue);
+      box_pointer
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let callee = codegen_rvalue callee in
