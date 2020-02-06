@@ -3,6 +3,7 @@ type t = private
   | Bool
   | Int64
   | Float
+  | Pointer of t
   | Array of t
   | Fun of {
       params: t list;
