@@ -691,3 +691,36 @@ let%expect_test _ =
     entry:
       ret void
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main!(): void {
+      var x = 1;
+      var y: ptr<int64> = &x;
+      *y := 2;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define void @"main!"() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %x = alloca i64
+      store i64 1, i64* %x
+      %y = alloca i64*
+      store i64* %x, i64** %y
+      %y.deref = load i64*, i64** %y
+      store i64 2, i64* %y.deref
+      ret void
+    }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]

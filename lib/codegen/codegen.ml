@@ -59,9 +59,12 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Value _ -> assert false
   in
 
-  let codegen_lvalue (expr: Expr.t) =
+  let rec codegen_lvalue (expr: Expr.t) ~builder =
     match expr with
     | Name { ident; _ } -> codegen_lvalue_name ident
+    | Deref { arg; _ } ->
+      let ptr = codegen_lvalue arg ~builder in
+      build_load ptr (value_name ptr ^ ".deref") builder
     | _ -> assert false
   in
 
@@ -92,6 +95,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float { value; _ } ->
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
+    | Deref _ -> codegen_lvalue expr ~builder
+    | Addr_of { arg; _ } -> codegen_lvalue arg ~builder
     | Array { elts; elt_type; _ } ->
       let typ = codegen_type @@ Expr.typ expr in
       let size_type = i32_type @@ module_context module_ in
@@ -130,7 +135,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_store binding pointer builder : llvalue);
       Hashtbl.set names ~key:ident ~data:(Pointer pointer)
     | Assign { dst; src; _ } ->
-      let dst = codegen_lvalue dst in
+      let dst = codegen_lvalue dst ~builder in
       let src = codegen_rvalue src ~builder in
       ignore (build_store src dst builder : llvalue)
   in

@@ -6,7 +6,7 @@ exception Unbound_identifier of {
 
 exception Type_error of {
     loc: Srcloc.t;
-    expected: Type.t list;
+    expected: [ `Type of Type.t | `Kind of Type.Kind.t ];
     got: Type.t;
   }
 [@@deriving sexp]
@@ -68,6 +68,17 @@ module Expr : sig
         ident: string;
         typ: Type.t;
         pure: bool;
+      }
+    | Deref of {
+        loc: Srcloc.t;
+        arg: t;
+        typ: Type.t;
+        pure: bool;
+      }
+    | Addr_of of {
+        loc: Srcloc.t;
+        arg: t;
+        typ: Type.t;
       }
     | Array of {
         loc: Srcloc.t;

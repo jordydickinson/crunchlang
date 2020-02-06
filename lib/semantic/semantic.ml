@@ -12,7 +12,7 @@ exception Unbound_type of {
 
 exception Type_error of {
     loc: Srcloc.t;
-    expected: Type.t list;
+    expected: [ `Type of Type.t | `Kind of Type.Kind.t ];
     got: Type.t;
   }
 [@@deriving sexp]
@@ -100,6 +100,8 @@ end = struct
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
+    |> bind_type_constructor ~ident:"ptr" ~n_params:1
+      ~constructor:(fun args -> Type.pointer args.(0))
     |> bind_type_constructor ~ident:"array" ~n_params:1
       ~constructor:(fun args -> Type.array args.(0))
 end
@@ -157,6 +159,17 @@ module Expr = struct
         typ: Type.t;
         pure: bool;
       }
+    | Deref of {
+        loc: Srcloc.t;
+        arg: t;
+        typ: Type.t;
+        pure: bool;
+      }
+    | Addr_of of {
+        loc: Srcloc.t;
+        arg: t;
+        typ: Type.t;
+      }
     | Array of {
         loc: Srcloc.t;
         elts: t array;
@@ -188,6 +201,8 @@ module Expr = struct
     | Bool { loc; _ }
     | Float { loc; _ }
     | Name { loc; _ }
+    | Deref { loc; _ }
+    | Addr_of { loc; _ }
     | Array { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
@@ -197,16 +212,21 @@ module Expr = struct
     | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
+    | Name { typ; _ }
+    | Deref { typ; _ }
+    | Addr_of { typ; _ } -> typ
     | Array { elt_type; _ } -> Type.array elt_type
-    | Name { typ; _ } -> typ
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
     | Let_in { body; _ } -> typ body
 
   let rec impurities = function
-    | Int _ | Bool _ | Float _ -> String.Set.empty
-    | Name { ident; pure; _ } ->
-      if pure then String.Set.empty else String.Set.singleton ident
+    | Int _ | Bool _ | Float _
+    | Name { pure = true; _ }
+    | Deref { pure = true; _ } -> String.Set.empty
+    | Name { ident; _ } -> String.Set.singleton ident
+    | Deref { arg; _ }
+    | Addr_of { arg; _ } -> impurities arg
     | Array { elts; _ } ->
       String.Set.union_list (Array.map elts ~f:impurities |> Array.to_list)
     | Binop { lhs; rhs; _ } -> Set.union (impurities lhs) (impurities rhs)
@@ -217,26 +237,24 @@ module Expr = struct
   let is_pure expr = Set.is_empty @@ impurities expr
 
   let is_lvalue = function
-    | Name { pure = false; _} -> true
-    | Name _ -> false
+    | Name { pure = false; _ }
+    | Deref { pure = false; _ } -> true
+    | Name _ | Deref _ -> false
     | Int _ | Bool _ | Float _
-    | Array _ | Binop _ | Call _
+    | Addr_of _ | Array _ | Binop _ | Call _
     | Let_in _ -> false
 
-  let check_assignable expr =
+  let check_lvalue expr =
     if not @@ is_lvalue expr
     then raise @@ Not_assignable { loc = loc expr }
 
-  let typecheck_or expr ~types =
-    if not @@ List.exists types ~f:(fun typ' -> Type.equal typ' @@ typ expr)
-    then raise @@ Type_error {
-        loc = loc expr;
-        expected = types;
-        got = typ expr;
-      }
+  let typecheck ~typ:typ' expr =
+    if not @@ Type.equal typ' @@ typ expr
+    then raise @@ Type_error { loc = loc expr; expected = `Type typ'; got = typ expr }
 
-  let typecheck expr ~typ:typ' =
-    typecheck_or expr ~types:[typ']
+  let typecheck_kind ~kind expr =
+    if not @@ Type.is_kind (typ expr) kind
+    then raise @@ Type_error { loc = loc expr; expected = `Kind kind; got = typ expr }
 
   let int ~loc ~value = fun _ -> int ~loc ~value
 
@@ -248,6 +266,25 @@ module Expr = struct
     match Env.lookup env ident with
     | Some { typ; pure } -> name ~loc ~ident ~typ ~pure
     | None -> raise @@ Unbound_identifier { loc; ident }
+
+  let deref ~loc ~arg =
+    typecheck_kind ~kind:Type.Kind.pointer arg;
+    let typ = Type.deref_exn @@ typ arg in
+    let pure = is_pure arg in
+    deref ~loc ~arg ~typ ~pure
+
+  let deref ~loc ~arg = fun env ->
+    let arg = arg env in
+    deref ~loc ~arg
+
+  let addr_of ~loc ~arg =
+    check_lvalue arg;
+    let typ = Type.pointer @@ typ arg in
+    addr_of ~loc ~arg ~typ
+
+  let addr_of ~loc ~arg = fun env ->
+    let arg = arg env in
+    addr_of ~loc ~arg
 
   let array ~loc ~elts =
     if Array.is_empty elts then
@@ -265,7 +302,7 @@ module Expr = struct
     array ~loc ~elts
 
   let binop ~loc ~op:Bop.Add ~lhs ~rhs =
-    typecheck_or lhs ~types:[Type.int64; Type.float];
+    typecheck_kind ~kind:Type.Kind.numeric lhs;
     typecheck rhs ~typ:(typ lhs);
     binop ~loc ~op:Bop.Add ~lhs ~rhs
 
@@ -310,8 +347,8 @@ module Expr = struct
     | Float { loc; value } -> float ~loc ~value
     | Name { loc; ident } -> name ~loc ~ident
     | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:build_ast)
-    | Deref _ -> assert false
-    | Addr_of _ -> assert false
+    | Deref { loc; arg } -> deref ~loc ~arg:(build_ast arg)
+    | Addr_of { loc; arg } -> addr_of ~loc ~arg:(build_ast arg)
     | Binop { loc; op; lhs; rhs } ->
       let lhs = build_ast lhs in
       let rhs = build_ast rhs in
@@ -402,7 +439,7 @@ module Stmt = struct
     block @@ block' env stmts ~accum:[], env
 
   let assign ~loc ~src ~dst =
-    Expr.check_assignable dst;
+    Expr.check_lvalue dst;
     Expr.typecheck dst ~typ:(Expr.typ src);
     assign ~loc ~src ~dst
 
@@ -442,15 +479,16 @@ module Stmt = struct
     if_ ~loc ~cond ~iftrue ~iffalse, env
 
   let return ~loc ~arg = fun env ->
-    let arg = Option.map arg ~f:(fun arg -> arg env) in
-    let arg_type = Option.value_map arg ~f:Expr.typ ~default:Type.void in
     let ret_type = Env.typeof env "return" |> Option.value_exn in
-    if not @@ Type.equal ret_type arg_type
-    then raise @@ Type_error {
-        loc;
-        expected = [ret_type];
-        got = arg_type
-      };
+    let arg = match arg with
+      | Some arg ->
+        let arg = arg env in
+        Expr.typecheck ~typ:ret_type arg;
+        Some arg
+      | None ->
+        if not @@ Type.equal ret_type Type.void
+        then raise @@ Type_error { loc; expected = `Type ret_type; got = Type.void };
+        None in
     return ~loc ~arg, env
 
   let rec build_ast (stmt: Ast.Stmt.t) =

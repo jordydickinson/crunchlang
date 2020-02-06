@@ -30,3 +30,34 @@ let params_or_error typ =
 
 let params_exn typ =
   ok_exn @@ params_or_error typ
+
+let deref_exn typ =
+  match typ with
+  | Pointer typ -> typ
+  | _ -> invalid_arg "Not a pointer type"
+
+module Kind = struct
+  type concrete = t
+  [@@deriving equal, sexp_of]
+
+  type t =
+    | Void
+    | Bool
+    | Numeric
+    | Pointer
+    | Array
+    | Fun
+  [@@deriving equal, sexp_of, variants]
+
+  let of_type (typ: concrete) =
+    match typ with
+    | Void -> Void
+    | Bool -> Bool
+    | Int64 | Float -> Numeric
+    | Pointer _ -> Pointer
+    | Array _ -> Array
+    | Fun _ -> Fun
+end
+
+let is_kind typ kind =
+  Kind.equal kind @@ Kind.of_type typ
