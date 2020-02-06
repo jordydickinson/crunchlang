@@ -96,7 +96,6 @@ end = struct
 
   let prelude =
     empty
-    |> bind_type ~ident:"void" ~typ:Type.void
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
@@ -111,6 +110,8 @@ module Type = struct
 
   module Builder = struct
     type nonrec t = Env.t -> t
+
+    let void = fun _ -> void
 
     let fun_ ~params ~ret = fun env ->
       let ret = ret env in
@@ -605,7 +606,8 @@ module Decl = struct
     | Fun { loc; ident; params; ret_type; body; pure } ->
       let params, param_types = List.unzip params in
       let param_types = List.map param_types ~f:Type.Builder.of_ast in
-      let ret_type = Type.Builder.of_ast ret_type in
+      let ret_type = Option.value_map ret_type ~f:Type.Builder.of_ast
+          ~default:Type.Builder.void in
       let typ = Type.Builder.fun_ ~params:param_types ~ret:ret_type in
       let body = Stmt.build_ast body in
       (fun_) ~loc ~ident ~params ~typ ~body ~pure

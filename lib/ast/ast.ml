@@ -132,7 +132,7 @@ module Decl = struct
         loc: Srcloc.t;
         ident: string;
         params: (string * Type_expr.t) list;
-        ret_type: Type_expr.t;
+        ret_type: Type_expr.t option [@sexp.option];
         body: Stmt.t;
         pure: bool [@sexp.bool];
       }

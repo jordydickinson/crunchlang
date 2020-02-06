@@ -9,7 +9,7 @@ let print_ir s =
   dispose_context ctx
 
 let%expect_test _ =
-  print_ir "fun main!(): void {}";
+  print_ir "fun main!() {}";
   [%expect {|
     ; ModuleID = 'test'
     source_filename = "test"
@@ -30,7 +30,7 @@ let%expect_test _ =
     } |}]
 
 let%expect_test _ =
-  print_ir "fun main!(): void { return; }";
+  print_ir "fun main!() { return; }";
   [%expect {|
     ; ModuleID = 'test'
     source_filename = "test"
@@ -462,7 +462,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main!(): void {
+    fun main!() {
       if true {
         if false {
           return;
@@ -656,7 +656,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main!(): void {
+    fun main!() {
       var xs = {1, 2, 3};
     }
   |};
@@ -694,7 +694,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main!(): void {
+    fun main!() {
       var x = 1;
       var y: ptr<int64> = &x;
       *y := 2;
