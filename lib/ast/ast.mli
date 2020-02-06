@@ -37,6 +37,10 @@ module Expr : sig
         loc: Srcloc.t;
         arg: t;
       }
+    | Addr_of of {
+        loc: Srcloc.t;
+        arg: t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;

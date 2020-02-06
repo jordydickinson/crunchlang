@@ -27,6 +27,7 @@
 (* Operators *)
 %token PLUS "+"
 %token STAR "*"
+%token AMP "&"
 
 (* Misc. symbols *)
 %token LPAREN "("
@@ -123,13 +124,14 @@ expr:
   ;
 
 infix:
-  | e = deref { e }
-  | lhs = infix; "+"; rhs = deref { Expr.add ~loc:$loc ~lhs ~rhs }
+  | e = prefix { e }
+  | lhs = infix; "+"; rhs = prefix { Expr.add ~loc:$loc ~lhs ~rhs }
   ;
 
-deref:
+prefix:
   | e = call { e }
-  | "*"; arg = deref { Expr.deref ~loc:$loc ~arg }
+  | "*"; arg = prefix { Expr.deref ~loc:$loc ~arg }
+  | "&"; arg = prefix { Expr.addr_of ~loc:$loc ~arg }
   ;
 
 call:

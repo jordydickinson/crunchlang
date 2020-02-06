@@ -311,6 +311,7 @@ module Expr = struct
     | Name { loc; ident } -> name ~loc ~ident
     | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:build_ast)
     | Deref _ -> assert false
+    | Addr_of _ -> assert false
     | Binop { loc; op; lhs; rhs } ->
       let lhs = build_ast lhs in
       let rhs = build_ast rhs in

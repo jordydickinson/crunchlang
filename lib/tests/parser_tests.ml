@@ -137,6 +137,10 @@ let%expect_test _ =
          (args ((Name (loc (:1:3 :1:4)) (ident x))))))))
      (rhs (Name (loc (:1:8 :1:9)) (ident x)))) |}]
 
+let%expect_test _ =
+  print_parse_expr "&x";
+  [%expect {| (Addr_of (loc (:1:0 :1:2)) (arg (Name (loc (:1:1 :1:2)) (ident x)))) |}]
+
 (*** Statements ***)
 
 let%expect_test _ =

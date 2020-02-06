@@ -43,6 +43,7 @@ rule read =
 
   | "+" { PLUS }
   | "*" { STAR }
+  | "&" { AMP }
 
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }

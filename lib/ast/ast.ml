@@ -37,6 +37,10 @@ module Expr = struct
         loc: Srcloc.t;
         arg: t;
       }
+    | Addr_of of {
+        loc: Srcloc.t;
+        arg: t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;
@@ -66,6 +70,7 @@ module Expr = struct
     | Name { loc; _ }
     | Array { loc; _ }
     | Deref { loc; _ }
+    | Addr_of { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ } -> loc
