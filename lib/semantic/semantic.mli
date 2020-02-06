@@ -29,6 +29,11 @@ exception Purity_error of {
   }
 [@@deriving sexp]
 
+exception Not_assignable of {
+    loc: Srcloc.t;
+  }
+[@@deriving sexp]
+
 module Env : sig
   type t
 

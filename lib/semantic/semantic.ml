@@ -29,6 +29,11 @@ exception Purity_error of {
   }
 [@@deriving sexp]
 
+exception Not_assignable of {
+    loc: Srcloc.t;
+  }
+[@@deriving sexp]
+
 module Env : sig
   type binding = {
     typ: Type.t;
@@ -211,6 +216,17 @@ module Expr = struct
 
   let is_pure expr = Set.is_empty @@ impurities expr
 
+  let is_lvalue = function
+    | Name { pure = false; _} -> true
+    | Name _ -> false
+    | Int _ | Bool _ | Float _
+    | Array _ | Binop _ | Call _
+    | Let_in _ -> false
+
+  let check_assignable expr =
+    if not @@ is_lvalue expr
+    then raise @@ Not_assignable { loc = loc expr }
+
   let typecheck_or expr ~types =
     if not @@ List.exists types ~f:(fun typ' -> Type.equal typ' @@ typ expr)
     then raise @@ Type_error {
@@ -384,6 +400,7 @@ module Stmt = struct
     block @@ block' env stmts ~accum:[], env
 
   let assign ~loc ~src ~dst =
+    Expr.check_assignable dst;
     Expr.typecheck dst ~typ:(Expr.typ src);
     assign ~loc ~src ~dst
 
