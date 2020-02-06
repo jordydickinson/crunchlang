@@ -26,6 +26,7 @@
 
 (* Operators *)
 %token PLUS "+"
+%token STAR "*"
 
 (* Misc. symbols *)
 %token LPAREN "("
@@ -90,7 +91,7 @@ param:
   ;
 
 stmt:
-  | e = call; ";" { Stmt.expr e }
+  | e = expr; ";" { Stmt.expr e }
   | dst = expr; ":="; src = expr; ";"
     { Stmt.assign ~loc:$loc ~dst ~src }
   | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
@@ -122,12 +123,17 @@ expr:
   ;
 
 infix:
-  | e = atom { e }
+  | e = deref { e }
+  | lhs = infix; "+"; rhs = deref { Expr.add ~loc:$loc ~lhs ~rhs }
+  ;
+
+deref:
   | e = call { e }
-  | lhs = infix; "+"; rhs = atom { Expr.add ~loc:$loc ~lhs ~rhs }
+  | "*"; arg = deref { Expr.deref ~loc:$loc ~arg }
   ;
 
 call:
+  | e = atom { e }
   | callee = atom; "("; args = separated_list(",", expr); ")"
     { Expr.call ~loc:$loc ~callee ~args }
   ;

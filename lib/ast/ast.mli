@@ -33,6 +33,10 @@ module Expr : sig
         loc: Srcloc.t;
         elts: t array;
       }
+    | Deref of {
+        loc: Srcloc.t;
+        arg: t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;

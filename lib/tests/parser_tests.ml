@@ -105,6 +105,38 @@ let%expect_test _ =
          (Int (loc (:1:16 :1:17)) (value 3))))))
      (body (Name (loc (:1:22 :1:24)) (ident xs)))) |}]
 
+let%expect_test _ =
+  print_parse_expr "*x";
+  [%expect {| (Deref (loc (:1:0 :1:2)) (arg (Name (loc (:1:1 :1:2)) (ident x)))) |}]
+
+let%expect_test _ =
+  print_parse_expr "*f(x)";
+  [%expect {|
+    (Deref (loc (:1:0 :1:5))
+     (arg
+      (Call (loc (:1:1 :1:5)) (callee (Name (loc (:1:1 :1:2)) (ident f)))
+       (args ((Name (loc (:1:3 :1:4)) (ident x))))))) |}]
+
+let%expect_test _ =
+  print_parse_expr "f(x) + *x";
+  [%expect {|
+    (Binop (loc (:1:0 :1:9)) (op Add)
+     (lhs
+      (Call (loc (:1:0 :1:4)) (callee (Name (loc (:1:0 :1:1)) (ident f)))
+       (args ((Name (loc (:1:2 :1:3)) (ident x))))))
+     (rhs (Deref (loc (:1:7 :1:9)) (arg (Name (loc (:1:8 :1:9)) (ident x)))))) |}]
+
+let%expect_test _ =
+  print_parse_expr "*f(x) + x";
+  [%expect {|
+    (Binop (loc (:1:0 :1:9)) (op Add)
+     (lhs
+      (Deref (loc (:1:0 :1:5))
+       (arg
+        (Call (loc (:1:1 :1:5)) (callee (Name (loc (:1:1 :1:2)) (ident f)))
+         (args ((Name (loc (:1:3 :1:4)) (ident x))))))))
+     (rhs (Name (loc (:1:8 :1:9)) (ident x)))) |}]
+
 (*** Statements ***)
 
 let%expect_test _ =

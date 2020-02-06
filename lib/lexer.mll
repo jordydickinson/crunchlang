@@ -42,6 +42,7 @@ rule read =
   | "=" { EQ }
 
   | "+" { PLUS }
+  | "*" { STAR }
 
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }
