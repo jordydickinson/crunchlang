@@ -159,6 +159,17 @@ type_expr:
   | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
   | ident = IDENT; "<"; args = separated_array(",", type_expr); ">"
     { Type_expr.apply ~loc:$loc ~ident ~args }
+  | "{"; fields = separated_list(";", field); "}"
+  | "{"; fields = field_semi+; "}"
+    { Type_expr.struct_ ~loc:$loc ~fields }
+  ;
+
+%inline field:
+  | ident = IDENT; typ = type_annot { ident, typ }
+  ;
+
+%inline field_semi:
+  | field = field ";" { field }
   ;
 
 separated_array(sep, term):

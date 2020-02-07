@@ -5,6 +5,7 @@ type t = private
   | Float
   | Pointer of t
   | Array of t
+  | Struct of (string * t) list
   | Fun of {
       params: t list;
       ret: t;
@@ -25,7 +26,6 @@ val deref_exn : t -> t
 
 module Kind : sig
   type concrete = t
-  [@@deriving equal, sexp_of]
 
   type t = private
     | Void
@@ -33,6 +33,7 @@ module Kind : sig
     | Numeric
     | Pointer
     | Array
+    | Struct
     | Fun
   [@@deriving equal, sexp_of, variants]
 

@@ -234,3 +234,18 @@ let%expect_test _ =
      (binding
       (Apply (loc (:1:9 :1:21)) (ident array)
        (args ((Name (loc (:1:15 :1:20)) (ident int64))))))) |}]
+
+let%expect_test _ =
+  print_parse_decl {|
+    type t = {
+      x: int64;
+      y: int64;
+    };
+  |};
+  [%expect {|
+    (Type (loc (:1:5 :1:54)) (ident t)
+     (binding
+      (Struct (loc (:1:14 :1:53))
+       (fields
+        ((x (Name (loc (:1:25 :1:30)) (ident int64)))
+         (y (Name (loc (:1:41 :1:46)) (ident int64)))))))) |}]

@@ -113,26 +113,32 @@ module Type = struct
 
     let void = fun _ -> void
 
+    let struct_ fields = fun env ->
+      let fields = List.map fields ~f:(fun (ident, typ) -> ident, typ env) in
+      struct_ @@ fields
+
     let fun_ ~params ~ret = fun env ->
       let ret = ret env in
       let params = List.map params ~f:(fun param -> param env) in
       fun_ ~params ~ret
 
-    let rec of_ast (type_expr: Ast.Type_expr.t) = fun env ->
-      let loc, ident, args =
-        match type_expr with
-        | Apply { loc; ident; args } -> loc, ident, args
-        | Name { loc; ident } -> loc, ident, [||] in
-      match Env.lookup_type env ident with
-      | None -> raise @@ Unbound_type { loc; ident }
-      | Some { n_params; constructor } when n_params = Array.length args ->
-        constructor (Array.map args ~f:(fun arg -> of_ast arg env))
-      | Some { n_params; _ } ->
-        raise @@ Arity_mismatch {
-          loc;
-          expected = n_params;
-          got = Array.length args
-        }
+    let rec of_ast (type_expr: Ast.Type_expr.t) =
+      let of_apply ~loc ~ident ~args = fun env ->
+        match Env.lookup_type env ident with
+        | None -> raise @@ Unbound_type { loc; ident }
+        | Some { n_params; constructor } when n_params = Array.length args ->
+          constructor (Array.map args ~f:(fun arg -> of_ast arg env))
+        | Some { n_params; _ } ->
+          raise @@ Arity_mismatch {
+            loc;
+            expected = n_params;
+            got = Array.length args
+          } in
+      match type_expr with
+      | Name { loc; ident }  -> of_apply ~loc ~ident ~args:[||]
+      | Apply { loc; ident; args } -> of_apply ~loc ~ident ~args
+      | Struct { loc = _; fields } -> struct_ @@ List.map fields
+          ~f:(fun (ident, typ) -> ident, of_ast typ)
   end
 
   type builder = Builder.t

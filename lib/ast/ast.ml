@@ -2,6 +2,7 @@ module Type_expr = struct
   type t =
     | Name of { loc: Srcloc.t; ident: string }
     | Apply of { loc: Srcloc.t; ident: string; args: t array }
+    | Struct of { loc: Srcloc.t; fields: (string * t) list }
   [@@deriving sexp_of, variants]
 end
 

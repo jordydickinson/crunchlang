@@ -5,6 +5,7 @@ type t =
   | Float
   | Pointer of t
   | Array of t
+  | Struct of (string * t) list
   | Fun of {
       params: t list;
       ret: t;
@@ -46,6 +47,7 @@ module Kind = struct
     | Numeric
     | Pointer
     | Array
+    | Struct
     | Fun
   [@@deriving equal, sexp_of, variants]
 
@@ -56,6 +58,7 @@ module Kind = struct
     | Int64 | Float -> Numeric
     | Pointer _ -> Pointer
     | Array _ -> Array
+    | Struct _ -> Struct
     | Fun _ -> Fun
 end
 
