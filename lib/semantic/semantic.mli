@@ -43,8 +43,6 @@ end
 
 module Type : sig
   type t = Type.t
-
-  type builder = Env.t -> t
 end
 
 module Expr : sig
@@ -104,8 +102,6 @@ module Expr : sig
       }
   [@@deriving sexp_of]
 
-  type builder
-
   val loc : t -> Srcloc.t
 
   val typ : t -> Type.t
@@ -113,15 +109,6 @@ module Expr : sig
   val impurities : t -> String.Set.t
 
   val is_pure : t -> bool
-
-  val int : loc:Srcloc.t -> value:int64 -> builder
-  val bool : loc:Srcloc.t -> value:bool -> builder
-  val float : loc:Srcloc.t -> value:float -> builder
-  val name : loc:Srcloc.t -> ident:string -> builder
-  val array : loc:Srcloc.t -> elts:builder array -> builder
-  val binop : loc:Srcloc.t -> op:Bop.t -> lhs:builder -> rhs:builder -> builder
-  val call : loc:Srcloc.t -> callee:builder -> args:builder list -> builder
-  val let_in : ?binding_type:Type.builder -> loc:Srcloc.t -> ident:string -> binding:builder -> body:builder -> builder
 end
 
 module Stmt : sig
@@ -157,16 +144,6 @@ module Stmt : sig
       }
   [@@deriving sexp_of]
 
-  type builder
-
-  val expr : Expr.builder -> builder
-  val block : builder list -> builder
-  val assign : loc:Srcloc.t -> dst:Expr.builder -> src:Expr.builder -> builder
-  val let_ : loc:Srcloc.t -> typ:Type.builder option -> ident:string -> binding:Expr.builder -> builder
-  val var : loc:Srcloc.t -> typ:Type.builder option -> ident:string -> binding:Expr.builder -> builder
-  val if_ : loc:Srcloc.t -> cond:Expr.builder -> iftrue:builder -> iffalse:builder option -> builder
-  val return : loc:Srcloc.t -> arg:Expr.builder option -> builder
-
   val to_block : t -> t
 end
 
@@ -199,20 +176,9 @@ module Decl : sig
         body: Expr.t;
       }
   [@@deriving sexp_of]
-
-  type builder
-
-  val let_ : loc:Srcloc.t -> ident:string -> typ:Type.builder -> binding:Expr.builder -> builder
-  val fun_ : loc:Srcloc.t -> ident:string -> params:string list -> typ:Type.builder -> body:Stmt.builder -> pure:bool -> builder
 end
 
 type t = Decl.t list
 [@@deriving sexp_of]
-
-type builder
-
-val declare : builder -> Decl.builder -> builder
-
-val build : builder -> Env.t -> t * Env.t
 
 val build_ast : Ast.t -> Env.t -> t * Env.t
