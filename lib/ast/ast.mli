@@ -108,6 +108,7 @@ module Decl : sig
     | Type of {
         loc: Srcloc.t;
         ident: string;
+        params: string list;
         binding: Type_expr.t;
       }
     | Let of {

@@ -645,9 +645,10 @@ module Decl = struct
 
     let of_ast (decl: Ast.Decl.t) =
       match decl with
-      | Type { loc; ident; binding } ->
+      | Type { loc; ident; binding; params = [] } ->
         let binding = Type.Builder.of_ast binding in
         (type_) ~loc ~ident ~binding
+      | Type _ -> assert false
       | Let { loc; ident; typ; binding } ->
         (let_) ~loc ~ident ~typ:(Type.Builder.of_ast typ)
           ~binding:(Expr.Builder.of_ast binding)
