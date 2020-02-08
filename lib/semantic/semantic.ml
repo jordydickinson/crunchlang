@@ -35,6 +35,8 @@ exception Not_assignable of {
 [@@deriving sexp]
 
 module Env : sig
+  type t
+
   type binding = {
     typ: Type.t;
     pure: bool;
@@ -42,10 +44,8 @@ module Env : sig
 
   type type_binding = {
     n_params: int;
-    constructor: Type.t array -> Type.t
+    constructor: Type.Parameterized.t;
   }
-
-  type t
 
   val empty : t
 
@@ -55,7 +55,8 @@ module Env : sig
   val lookup : t -> string -> binding option
   val typeof : t -> string -> Type.t option
 
-  val bind_type : t -> ident:string -> typ:Type.t -> t
+  val bind_type_constructor : t -> ident:string ->
+    n_params:int -> constructor:Type.Parameterized.t -> t
   val lookup_type : t -> string -> type_binding option
 end = struct
   type binding = {
@@ -65,7 +66,7 @@ end = struct
 
   type type_binding = {
     n_params: int;
-    constructor: Type.t array -> Type.t;
+    constructor: Type.Parameterized.t;
   }
 
   type t = {
@@ -92,7 +93,7 @@ end = struct
     { env with types = Map.set env.types ~key:ident ~data:{ n_params; constructor } }
 
   let bind_type env ~ident ~typ =
-    bind_type_constructor env ~ident ~n_params:0 ~constructor:(fun _ -> typ)
+    bind_type_constructor env ~ident ~n_params:0 ~constructor:(Type.Parameterized.of_concrete typ)
 
   let prelude =
     empty
@@ -100,26 +101,50 @@ end = struct
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
     |> bind_type_constructor ~ident:"ptr" ~n_params:1
-      ~constructor:(fun args -> Type.pointer args.(0))
+      ~constructor:Type.Parameterized.(pointer @@ arg 0)
     |> bind_type_constructor ~ident:"array" ~n_params:1
-      ~constructor:(fun args -> Type.array args.(0))
+      ~constructor:Type.Parameterized.(array @@ arg 0)
 end
 
 module Type = struct
   include Type
 
+  module Parameterized = struct
+    include Parameterized
+
+    let rec generalize (type_expr: Ast.Type_expr.t) ~params =
+      let generalize_apply ~loc ~ident ~args = fun env ->
+        match
+          Array.findi params ~f:(fun _ -> String.equal ident),
+          Env.lookup_type env ident
+        with
+        | Some (i, _), _ -> arg i
+        | None, Some { n_params; constructor } ->
+          if Array.length args <> n_params
+          then raise @@ Arity_mismatch { loc; expected = n_params; got = Array.length args };
+          constructor
+        | None, None -> raise @@ Unbound_type { loc; ident } in
+      let generalize_struct ~loc:_ ~fields = fun env ->
+        struct_ @@ List.map fields
+          ~f:(Tuple2.map_snd ~f:(fun t -> generalize t ~params env)) in
+      match type_expr with
+      | Name { loc; ident } -> generalize_apply ~loc ~ident ~args:[||]
+      | Apply { loc; ident; args } ->
+        generalize_apply ~loc ~ident
+          ~args:(Array.map args ~f:(generalize ~params))
+      | Struct { loc; fields } -> generalize_struct ~loc ~fields
+  end
+
   module Builder : sig
-    type typ = t
     type t
 
     val void : t
     val fun_ : params:t list -> ret:t -> t
 
-    val build : t -> Env.t -> typ
+    val build : t -> Env.t -> Concrete.t
     val of_ast : Ast.Type_expr.t -> t
   end = struct
-    type typ = t
-    type t = Env.t -> typ
+    type t = Env.t -> Concrete.t
 
     let build (builder: t) (env: Env.t) = builder env
 
@@ -136,21 +161,19 @@ module Type = struct
 
     let rec of_ast (type_expr: Ast.Type_expr.t) =
       let of_apply ~loc ~ident ~args = fun env ->
+        let args = Array.map args ~f:(fun arg -> of_ast arg env) in
         match Env.lookup_type env ident with
         | None -> raise @@ Unbound_type { loc; ident }
-        | Some { n_params; constructor } when n_params = Array.length args ->
-          constructor (Array.map args ~f:(fun arg -> of_ast arg env))
-        | Some { n_params; _ } ->
-          raise @@ Arity_mismatch {
-            loc;
-            expected = n_params;
-            got = Array.length args
-          } in
+        | Some { n_params; constructor } ->
+          if Array.length args <> n_params
+          then raise @@ Arity_mismatch { loc; expected = n_params; got = Array.length args };
+          Parameterized.instantiate_exn constructor ~args in
+      let of_struct ~loc:_ ~fields =
+        struct_ (List.map fields ~f:(Tuple2.map_snd ~f:of_ast)) in
       match type_expr with
-      | Name { loc; ident }  -> of_apply ~loc ~ident ~args:[||]
+      | Name { loc; ident } -> of_apply ~loc ~ident ~args:[||]
       | Apply { loc; ident; args } -> of_apply ~loc ~ident ~args
-      | Struct { loc = _; fields } -> struct_ @@ List.map fields
-          ~f:(fun (ident, typ) -> ident, of_ast typ)
+      | Struct { loc; fields } -> of_struct ~loc ~fields
   end
 end
 
@@ -561,19 +584,19 @@ module Decl = struct
     | Type of {
         loc: Srcloc.t;
         ident: string;
-        binding: Type.t;
+        constructor: Type.Parameterized.t;
       }
     | Let of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         body: Stmt.t;
         pure: bool;
       }
@@ -581,7 +604,7 @@ module Decl = struct
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         body: Expr.t;
       }
   [@@deriving sexp_of, variants]
@@ -598,10 +621,10 @@ module Decl = struct
 
     let build (builder: t) (env: Env.t) : decl * Env.t = builder env
 
-    let type_ ~loc ~ident ~binding = fun env ->
-      let binding = Type.Builder.build binding env in
-      let env = Env.bind_type env ~ident ~typ:binding in
-      type_ ~loc ~ident ~binding, env
+    let type_ ~loc ~ident ~n_params ~constructor = fun env ->
+      let constructor = constructor env in
+      let env = Env.bind_type_constructor env ~ident ~n_params ~constructor in
+      type_ ~loc ~ident ~constructor, env
 
     let let_ ~loc ~ident ~typ ~binding =
       if Fn.non Expr.is_pure binding
@@ -643,12 +666,11 @@ module Decl = struct
       let body = Expr.Builder.build body env' in
       fun_expr ~loc ~ident ~params ~typ ~body, env
 
-    let of_ast (decl: Ast.Decl.t) =
+    let of_ast (decl: Ast.Decl.t) : t =
       match decl with
-      | Type { loc; ident; binding; params = [] } ->
-        let binding = Type.Builder.of_ast binding in
-        (type_) ~loc ~ident ~binding
-      | Type _ -> assert false
+      | Type { loc; ident; binding; params } ->
+        let constructor = Type.Parameterized.generalize binding ~params in
+        (type_) ~loc ~ident ~n_params:(Array.length params) ~constructor
       | Let { loc; ident; typ; binding } ->
         (let_) ~loc ~ident ~typ:(Type.Builder.of_ast typ)
           ~binding:(Expr.Builder.of_ast binding)

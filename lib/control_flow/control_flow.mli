@@ -52,19 +52,19 @@ module Decl : sig
     | Type of {
         loc: Srcloc.t;
         ident: string;
-        binding: Type.t;
+        constructor: Type.Parameterized.t;
       }
     | Let of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         body: Flow.t;
         pure: bool;
       }
@@ -72,7 +72,7 @@ module Decl : sig
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.t;
+        typ: Type.Concrete.t;
         body: Expr.t;
       }
   [@@deriving sexp_of, variants]

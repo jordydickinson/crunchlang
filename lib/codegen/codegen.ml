@@ -35,8 +35,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
 
   let names = String.Table.create () in
 
-  let rec codegen_type (typ: Type.t) =
-    let codegen_array_type (elt: Type.t) =
+  let rec codegen_type (typ: Type.Concrete.t) =
+    let codegen_array_type (elt: Type.Concrete.t) =
       let elts_type = pointer_type @@ codegen_type elt in
       let size_type = pointer_type @@ i32_type @@ module_context module_ in
       struct_type (module_context module_) [|size_type; elts_type|]
