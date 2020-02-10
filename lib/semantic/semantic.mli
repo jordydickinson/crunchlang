@@ -41,6 +41,10 @@ module Env : sig
   val prelude : t
 end
 
+module Type : sig
+  type t = Type.t
+end
+
 module Expr : sig
   module Bop = Ast.Expr.Bop
 
@@ -148,19 +152,19 @@ module Decl : sig
     | Type of {
         loc: Srcloc.t;
         ident: string;
-        constructor: Type.Parameterized.t;
+        binding: Type.t;
       }
     | Let of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         body: Stmt.t;
         pure: bool;
       }
@@ -168,7 +172,7 @@ module Decl : sig
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         body: Expr.t;
       }
   [@@deriving sexp_of]

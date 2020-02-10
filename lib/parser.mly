@@ -67,9 +67,9 @@ expr_eof:
 
 decl:
   | "type"; ident = IDENT; "="; binding = type_expr; ";"
-    { Decl.type_ ~loc:$loc ~ident ~binding ~params:[||] }
+    { Decl.type_ ~loc:$loc ~ident ~binding ~params:[] }
   | "type"; ident = IDENT;
-    "<"; params = separated_nonempty_array(",", IDENT); ">";
+    "<"; params = separated_nonempty_list(",", IDENT); ">";
     "="; binding = type_expr; ";"
     { Decl.type_ ~loc:$loc ~ident ~binding ~params }
   | "let"; ident = IDENT; typ = type_annot; "="; binding = expr; ";"
@@ -178,10 +178,6 @@ type_expr:
 
 separated_array(sep, term):
   | terms = separated_list(sep, term) { Array.of_list terms }
-  ;
-
-separated_nonempty_array(sep, term):
-  | terms = separated_nonempty_list(sep, term) { Array.of_list terms }
   ;
 
 %%

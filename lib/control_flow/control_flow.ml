@@ -103,19 +103,19 @@ module Decl = struct
     | Type of {
         loc: Srcloc.t;
         ident: string;
-        constructor: Type.Parameterized.t;
+        binding: Type.t;
       }
     | Let of {
         loc: Srcloc.t;
         ident: string;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         binding: Expr.t;
       }
     | Fun of {
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         body: Flow.t;
         pure: bool;
       }
@@ -123,15 +123,15 @@ module Decl = struct
         loc: Srcloc.t;
         ident: string;
         params: string list;
-        typ: Type.Concrete.t;
+        typ: Type.t;
         body: Expr.t;
       }
   [@@deriving sexp_of, variants]
 
   let of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
-    | Type { loc; ident; constructor } ->
-      Type { loc; ident; constructor }
+    | Type { loc; ident; binding } ->
+      Type { loc; ident; binding }
     | Let { loc; ident; typ; binding } ->
       Let { loc; ident; typ; binding }
     | Fun { loc; ident; params; typ; body; pure } ->
