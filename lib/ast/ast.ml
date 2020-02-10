@@ -121,7 +121,6 @@ module Decl = struct
     | Type of {
         loc: Srcloc.t;
         ident: string;
-        params: string list [@sexp.omit_nil];
         binding: Type_expr.t;
       }
     | Let of {

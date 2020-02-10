@@ -249,15 +249,3 @@ let%expect_test _ =
        (fields
         ((x (Name (loc (:1:25 :1:30)) (ident int64)))
          (y (Name (loc (:1:41 :1:46)) (ident int64)))))))) |}]
-
-let%expect_test _ =
-  print_parse_decl {|
-    type t<T> = {
-      x: T;
-    };
-  |};
-  [%expect {|
-    (Type (loc (:1:5 :1:37)) (ident t) (params (T))
-     (binding
-      (Struct (loc (:1:17 :1:36))
-       (fields ((x (Name (loc (:1:28 :1:29)) (ident T)))))))) |}]

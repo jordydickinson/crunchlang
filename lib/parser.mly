@@ -67,11 +67,7 @@ expr_eof:
 
 decl:
   | "type"; ident = IDENT; "="; binding = type_expr; ";"
-    { Decl.type_ ~loc:$loc ~ident ~binding ~params:[] }
-  | "type"; ident = IDENT;
-    "<"; params = separated_nonempty_list(",", IDENT); ">";
-    "="; binding = type_expr; ";"
-    { Decl.type_ ~loc:$loc ~ident ~binding ~params }
+    { Decl.type_ ~loc:$loc ~ident ~binding }
   | "let"; ident = IDENT; typ = type_annot; "="; binding = expr; ";"
     { Decl.let_ ~loc:$loc ~ident ~typ ~binding }
   | "fun"; ident = BANG_IDENT;
