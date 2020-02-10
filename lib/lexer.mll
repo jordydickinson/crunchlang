@@ -32,8 +32,8 @@ rule read =
   | ")" { RPAREN }
   | "{" { LBRACE }
   | "}" { RBRACE }
-  | "<" { LANGLE }
-  | ">" { RANGLE }
+  | "[" { LBRACKET }
+  | "]" { RBRACKET }
 
   | ";" { SEMI }
   | "," { COMMA }

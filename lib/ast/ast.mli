@@ -1,7 +1,8 @@
 module Type_expr : sig
   type t = private
     | Name of { loc: Srcloc.t; ident: string }
-    | Apply of { loc: Srcloc.t; ident: string; args: t array }
+    | Pointer of { loc: Srcloc.t; arg: t }
+    | Array of { loc: Srcloc.t; arg: t }
     | Struct of { loc: Srcloc.t; fields: (string * t) list }
   [@@deriving sexp_of, variants]
 end

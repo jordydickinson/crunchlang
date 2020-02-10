@@ -34,8 +34,8 @@
 %token RPAREN ")"
 %token LBRACE "{"
 %token RBRACE "}"
-%token LANGLE "<"
-%token RANGLE ">"
+%token LBRACKET "["
+%token RBRACKET "]"
 %token COMMA ","
 %token SEMI ";"
 %token COLON ":"
@@ -157,8 +157,8 @@ type_annot:
 
 type_expr:
   | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
-  | ident = IDENT; "<"; args = separated_array(",", type_expr); ">"
-    { Type_expr.apply ~loc:$loc ~ident ~args }
+  | arg = type_expr "*" { Type_expr.pointer ~loc:$loc ~arg }
+  | arg = type_expr "[" "]" { Type_expr.array ~loc:$loc ~arg }
   | "{"; fields = separated_list(";", field); "}"
   | "{"; fields = field_semi+; "}"
     { Type_expr.struct_ ~loc:$loc ~fields }

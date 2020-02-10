@@ -228,14 +228,6 @@ let%expect_test _ =
      (binding (Name (loc (:1:9 :1:14)) (ident int64)))) |}]
 
 let%expect_test _ =
-  print_parse_decl "type t = array<int64>;";
-  [%expect {|
-    (Type (loc (:1:0 :1:22)) (ident t)
-     (binding
-      (Apply (loc (:1:9 :1:21)) (ident array)
-       (args ((Name (loc (:1:15 :1:20)) (ident int64))))))) |}]
-
-let%expect_test _ =
   print_parse_decl {|
     type t = {
       x: int64;

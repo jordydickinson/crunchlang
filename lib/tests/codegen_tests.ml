@@ -696,7 +696,7 @@ let%expect_test _ =
   print_ir {|
     fun main!() {
       var x = 1;
-      var y: ptr<int64> = &x;
+      var y: int64* = &x;
       *y := 2;
     }
   |};

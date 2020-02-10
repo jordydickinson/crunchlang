@@ -40,11 +40,6 @@ module Env : sig
     pure: bool;
   }
 
-  type type_binding = {
-    n_params: int;
-    constructor: Type.t array -> Type.t
-  }
-
   type t
 
   val empty : t
@@ -56,21 +51,16 @@ module Env : sig
   val typeof : t -> string -> Type.t option
 
   val bind_type : t -> ident:string -> typ:Type.t -> t
-  val lookup_type : t -> string -> type_binding option
+  val lookup_type : t -> string -> Type.t option
 end = struct
   type binding = {
     typ: Type.t;
     pure: bool;
   }
 
-  type type_binding = {
-    n_params: int;
-    constructor: Type.t array -> Type.t;
-  }
-
   type t = {
     vars: binding String.Map.t;
-    types: type_binding String.Map.t;
+    types: Type.t String.Map.t;
   }
 
   let empty = {
@@ -88,21 +78,14 @@ end = struct
   let bind env ~ident ~typ ~pure =
     { env with vars = Map.set env.vars ~key:ident ~data:{ typ; pure } }
 
-  let bind_type_constructor env ~ident ~n_params ~constructor =
-    { env with types = Map.set env.types ~key:ident ~data:{ n_params; constructor } }
-
   let bind_type env ~ident ~typ =
-    bind_type_constructor env ~ident ~n_params:0 ~constructor:(fun _ -> typ)
+    { env with types = Map.set env.types ~key:ident ~data:typ }
 
   let prelude =
     empty
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
-    |> bind_type_constructor ~ident:"ptr" ~n_params:1
-      ~constructor:(fun args -> Type.pointer args.(0))
-    |> bind_type_constructor ~ident:"array" ~n_params:1
-      ~constructor:(fun args -> Type.array args.(0))
 end
 
 module Type = struct
@@ -129,26 +112,27 @@ module Type = struct
       let fields = List.map fields ~f:(fun (ident, typ) -> ident, typ env) in
       struct_ @@ fields
 
+    let pointer arg = fun env ->
+      pointer @@ arg env
+
+    let array arg = fun env ->
+      array @@ arg env
+
     let fun_ ~params ~ret = fun env ->
       let ret = ret env in
       let params = List.map params ~f:(fun param -> param env) in
       fun_ ~params ~ret
 
     let rec of_ast (type_expr: Ast.Type_expr.t) =
-      let of_apply ~loc ~ident ~args = fun env ->
+      let of_name ~loc ~ident = fun env ->
         match Env.lookup_type env ident with
         | None -> raise @@ Unbound_type { loc; ident }
-        | Some { n_params; constructor } when n_params = Array.length args ->
-          constructor (Array.map args ~f:(fun arg -> of_ast arg env))
-        | Some { n_params; _ } ->
-          raise @@ Arity_mismatch {
-            loc;
-            expected = n_params;
-            got = Array.length args
-          } in
+        | Some typ -> typ
+      in
       match type_expr with
-      | Name { loc; ident }  -> of_apply ~loc ~ident ~args:[||]
-      | Apply { loc; ident; args } -> of_apply ~loc ~ident ~args
+      | Name { loc; ident }  -> of_name ~loc ~ident
+      | Pointer { loc = _; arg } -> pointer @@ of_ast arg
+      | Array { loc = _; arg } -> array @@ of_ast arg
       | Struct { loc = _; fields } -> struct_ @@ List.map fields
           ~f:(fun (ident, typ) -> ident, of_ast typ)
   end
