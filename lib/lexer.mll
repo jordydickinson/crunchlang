@@ -1,5 +1,8 @@
 {
   open Parser
+
+  exception Unclosed_comment
+  [@@deriving sexp]
 }
 
 let white = [' ' '\t' '\n' '\r']
@@ -15,6 +18,8 @@ let bang_ident = ident '!'
 rule read =
   parse
   | white { read lexbuf }
+  | "//" [^ '\n' '\r']* { read lexbuf }
+  | "(*" { block_comment 1 lexbuf }
 
   | "type" { KW_TYPE }
   | "fun" { KW_FUN }
@@ -51,3 +56,10 @@ rule read =
   | ident as id { IDENT id }
 
   | eof { EOF }
+
+and block_comment level =
+  parse
+  | "*)" { if level = 0 then read lexbuf else block_comment (level - 1) lexbuf }
+  | "(*" { block_comment (level + 1) lexbuf }
+  | _ { block_comment level lexbuf }
+  | eof { raise Unclosed_comment }
