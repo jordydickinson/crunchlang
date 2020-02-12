@@ -145,13 +145,23 @@ module Decl = struct
         ret_type: Type_expr.t;
         body: Expr.t;
       }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: (string * Type_expr.t) list;
+        ret_type: Type_expr.t option;
+        pure: bool [@sexp.bool];
+        extern_abi: string;
+        extern_ident: string;
+      }
   [@@deriving sexp_of, variants]
 
   let loc = function
     | Type { loc; _ }
     | Let { loc; _ }
     | Fun { loc; _ }
-    | Fun_expr { loc; _ } -> loc
+    | Fun_expr { loc; _ }
+    | Fun_extern { loc; _ } -> loc
 end
 
 type t = Decl.t list

@@ -34,6 +34,12 @@ exception Not_assignable of {
   }
 [@@deriving sexp]
 
+exception Invalid_abi of {
+    loc: Srcloc.t;
+    ident: string;
+  }
+[@@deriving sexp]
+
 module Env : sig
   type t
 
@@ -174,6 +180,15 @@ module Decl : sig
         params: string list;
         typ: Type.t;
         body: Expr.t;
+      }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        pure: bool;
+        extern_abi: string;
+        extern_ident: string;
       }
   [@@deriving sexp_of]
 end

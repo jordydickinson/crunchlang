@@ -75,6 +75,15 @@ module Decl : sig
         typ: Type.t;
         body: Expr.t;
       }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        pure: bool;
+        extern_abi: string;
+        extern_ident: string;
+      }
   [@@deriving sexp_of, variants]
 end
 

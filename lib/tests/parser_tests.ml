@@ -219,6 +219,20 @@ let%expect_test _ =
        (lhs (Name (loc (:1:37 :1:38)) (ident x)))
        (rhs (Name (loc (:1:41 :1:42)) (ident y)))))) |}]
 
+let%expect_test _ =
+  print_parse_decl {|
+    extern("C")
+    fun puts!(str: uint8*): int64 = "puts";
+  |};
+  [%expect {|
+    (Fun_extern (loc (:1:5 :1:60)) (ident puts!)
+     (params
+      ((str
+        (Pointer (loc (:1:36 :1:42))
+         (arg (Name (loc (:1:36 :1:41)) (ident uint8)))))))
+     (ret_type ((Name (loc (:1:45 :1:50)) (ident int64)))) (extern_abi C)
+     (extern_ident puts)) |}]
+
 (*** Type Declarations ***)
 
 let%expect_test _ =

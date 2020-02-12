@@ -126,6 +126,15 @@ module Decl = struct
         typ: Type.t;
         body: Expr.t;
       }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        pure: bool [@sexp.bool];
+        extern_abi: string;
+        extern_ident: string;
+      }
   [@@deriving sexp_of, variants]
 
   let of_semantic_decl (decl: Semantic.Decl.t) =
@@ -141,6 +150,9 @@ module Decl = struct
       }
     | Fun_expr { loc; ident; params; typ; body } ->
       Fun_expr { loc; ident; params; typ; body }
+    | Fun_extern { loc; ident; params; typ; pure; extern_abi; extern_ident } ->
+      Fun_extern { loc; ident; params; typ; pure; extern_abi; extern_ident }
+
 end
 
 type t = Decl.t list

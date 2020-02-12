@@ -34,6 +34,12 @@ exception Not_assignable of {
   }
 [@@deriving sexp]
 
+exception Invalid_abi of {
+    loc: Srcloc.t;
+    ident: string;
+  }
+[@@deriving sexp]
+
 module Env : sig
   type binding = {
     typ: Type.t;
@@ -568,6 +574,15 @@ module Decl = struct
         typ: Type.t;
         body: Expr.t;
       }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: string list;
+        typ: Type.t;
+        pure: bool [@sexp.bool];
+        extern_abi: string;
+        extern_ident: string;
+      }
   [@@deriving sexp_of, variants]
 
   module Builder : sig
@@ -627,6 +642,15 @@ module Decl = struct
       let body = Expr.Builder.build body env' in
       fun_expr ~loc ~ident ~params ~typ ~body, env
 
+    let fun_extern ~loc ~ident ~params ~typ ~extern_abi ~extern_ident ~pure = fun env ->
+      let extern_abi = match extern_abi with
+        | "C" -> "C"
+        | _ -> raise @@ Invalid_abi { loc; ident } in
+      let typ = Type.Builder.build typ env in
+      let env = Env.bind env ~ident ~typ ~pure in
+      fun_extern ~loc ~ident ~params ~typ ~extern_abi ~extern_ident ~pure,
+      env
+
     let of_ast (decl: Ast.Decl.t) =
       match decl with
       | Type { loc; ident; binding } ->
@@ -650,6 +674,13 @@ module Decl = struct
         let typ = Type.Builder.fun_ ~params:param_types ~ret:ret_type in
         let body = Expr.Builder.of_ast body in
         fun_expr ~loc ~ident ~params ~typ ~body
+      | Fun_extern { loc; ident; params; ret_type; extern_abi; extern_ident; pure } ->
+        let params, param_types = List.unzip params in
+        let param_types = List.map param_types ~f:Type.Builder.of_ast in
+        let ret_type = Option.value_map ret_type ~f:Type.Builder.of_ast
+            ~default:Type.Builder.void in
+        let typ = Type.Builder.fun_ ~params:param_types ~ret:ret_type in
+        fun_extern ~loc ~ident ~params ~typ ~extern_abi ~extern_ident ~pure
   end
 
   type builder = Builder.t

@@ -1,7 +1,7 @@
 {
   open Parser
 
-  exception Unclosed_comment
+  exception Syntax_error of string
   [@@deriving sexp]
 }
 
@@ -20,6 +20,7 @@ rule read =
   | white { read lexbuf }
   | "//" [^ '\n' '\r']* { read lexbuf }
   | "(*" { block_comment 1 lexbuf }
+  | '\"' { read_string (Buffer.create 16) lexbuf }
 
   | "type" { KW_TYPE }
   | "fun" { KW_FUN }
@@ -29,6 +30,7 @@ rule read =
   | "if" { KW_IF }
   | "else" { KW_ELSE }
   | "return" { KW_RETURN }
+  | "extern" { KW_EXTERN }
 
   | "true" { KW_TRUE }
   | "false" { KW_FALSE }
@@ -62,4 +64,20 @@ and block_comment level =
   | "*)" { if level = 0 then read lexbuf else block_comment (level - 1) lexbuf }
   | "(*" { block_comment (level + 1) lexbuf }
   | _ { block_comment level lexbuf }
-  | eof { raise Unclosed_comment }
+  | eof { raise @@ Syntax_error "Unterminated string" }
+
+and read_string buf =
+  parse
+  | '\"' { STRING (Buffer.contents buf) }
+  | '\\' '/'  { Buffer.add_char buf '/'; read_string buf lexbuf }
+  | '\\' '\\' { Buffer.add_char buf '\\'; read_string buf lexbuf }
+  | '\\' 'b'  { Buffer.add_char buf '\b'; read_string buf lexbuf }
+  | '\\' 'f'  { Buffer.add_char buf '\012'; read_string buf lexbuf }
+  | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
+  | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
+  | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
+  | [^ '"' '\\']+
+    { Buffer.add_string buf (Lexing.lexeme lexbuf);
+      read_string buf lexbuf }
+  | _ { raise @@ Syntax_error ("Illegal string character: " ^ Lexing.lexeme lexbuf) }
+  | eof { raise @@ Syntax_error "Unterminated string" }

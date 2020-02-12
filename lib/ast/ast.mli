@@ -132,6 +132,15 @@ module Decl : sig
         ret_type: Type_expr.t;
         body: Expr.t;
       }
+    | Fun_extern of {
+        loc: Srcloc.t;
+        ident: string;
+        params: (string * Type_expr.t) list;
+        ret_type: Type_expr.t option;
+        pure: bool;
+        extern_abi: string;
+        extern_ident: string;
+      }
   [@@deriving sexp_of, variants]
 
   val loc : t -> Srcloc.t

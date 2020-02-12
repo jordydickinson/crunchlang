@@ -204,6 +204,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
   and codegen_decl' decl =
     match decl with
     | Type _ -> ()
+    | Fun_extern _ -> assert false
     | Let { loc = _; ident; typ; binding } ->
       let typ = codegen_type typ in
       let global = define_global ident (undef typ) module_ in

@@ -7,6 +7,7 @@
 
 %token<int64> INT
 %token<float> FLOAT
+%token<string> STRING
 %token<string> IDENT
 %token<string> BANG_IDENT
 
@@ -19,6 +20,7 @@
 %token KW_IF "if"
 %token KW_ELSE "else"
 %token KW_RETURN "return"
+%token KW_EXTERN "extern"
 
 (* Booleans *)
 %token KW_TRUE "true"
@@ -85,6 +87,18 @@ decl:
     ret_type = type_annot;
     "="; body = expr; ";"
     { Decl.fun_expr ~loc:$loc ~ident ~params ~ret_type ~body }
+  | "extern" "(" extern_abi = STRING ")"
+    "fun" ident = IDENT
+    "(" params = separated_list(",", param) ")"
+    ret_type = type_annot?
+    "=" extern_ident = STRING ";"
+    { Decl.fun_extern ~loc:$loc ~ident ~params ~ret_type ~extern_abi ~extern_ident ~pure:true }
+  | "extern" "(" extern_abi = STRING ")"
+    "fun" ident = BANG_IDENT
+    "(" params = separated_list(",", param) ")"
+    ret_type = type_annot?
+    "=" extern_ident = STRING ";"
+    { Decl.fun_extern ~loc:$loc ~ident ~params ~ret_type ~extern_abi ~extern_ident ~pure:false }
   ;
 
 param:
