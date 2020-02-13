@@ -1,7 +1,7 @@
 type t =
   | Void
   | Bool
-  | Int64
+  | Int of { bitwidth: int; signed: bool }
   | Float
   | Pointer of t
   | Array of t
@@ -11,6 +11,20 @@ type t =
       ret: t;
     }
 [@@deriving equal, sexp_of, variants]
+
+let uint8 = int ~bitwidth:8 ~signed:false
+let int64 = int ~bitwidth:64 ~signed:true
+
+let rec unify typ typ' =
+  match typ, typ' with
+  | _ when equal typ typ' -> Some typ
+  | Int { bitwidth; signed }, Int { bitwidth = bitwidth'; signed = signed' } ->
+    let bitwidth = max bitwidth bitwidth' in
+    let signed = signed || signed' in
+    Some (int ~bitwidth ~signed)
+  | Pointer elt, Pointer elt' -> let%map.Option elt = unify elt elt' in pointer elt
+  | Array elt, Array elt' -> let%map.Option elt = unify elt elt' in array elt
+  | _ -> None
 
 let is_fun = function
   | Fun _ -> true
@@ -55,7 +69,7 @@ module Kind = struct
     match typ with
     | Void -> Void
     | Bool -> Bool
-    | Int64 | Float -> Numeric
+    | Int _ | Float -> Numeric
     | Pointer _ -> Pointer
     | Array _ -> Array
     | Struct _ -> Struct

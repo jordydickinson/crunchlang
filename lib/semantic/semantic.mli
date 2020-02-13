@@ -40,6 +40,13 @@ exception Invalid_abi of {
   }
 [@@deriving sexp]
 
+exception Coercion_error of {
+    loc: Srcloc.t;
+    dst_type: Type.t;
+    src_type: Type.t;
+  }
+[@@deriving sexp]
+
 module Env : sig
   type t
 
@@ -57,7 +64,8 @@ module Expr : sig
   type t = private
     | Int of {
         loc: Srcloc.t;
-        value: int64
+        value: int64;
+        typ: Type.t;
       }
     | Bool of {
         loc: Srcloc.t;
@@ -72,6 +80,10 @@ module Expr : sig
         ident: string;
         typ: Type.t;
         pure: bool;
+      }
+    | Coerce of {
+        typ: Type.t;
+        arg: t;
       }
     | Deref of {
         loc: Srcloc.t;

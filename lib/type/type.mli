@@ -1,7 +1,7 @@
 type t = private
   | Void
   | Bool
-  | Int64
+  | Int of { bitwidth: int; signed: bool }
   | Float
   | Pointer of t
   | Array of t
@@ -14,12 +14,15 @@ type t = private
 
 val void : t
 val bool : t
+val uint8 : t
 val int64 : t
 val float : t
 val pointer : t -> t
 val array : t -> t
 val struct_ : (string * t) list -> t
 val fun_ : params:t list -> ret:t -> t
+
+val unify : t -> t -> t option
 
 val is_fun : t -> bool
 val ret_exn : t -> t
