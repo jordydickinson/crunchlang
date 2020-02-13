@@ -13,6 +13,10 @@ let print_parse_decl s =
   |> Ast.Decl.sexp_of_t
   |> print_s
 
+let print_parse_decl_failure s =
+  try print_parse_decl s; failwith "No exception raised"
+  with e -> print_string @@ Exn.to_string e
+
 (*** Expressions ***)
 
 let%expect_test _ =
@@ -232,6 +236,15 @@ let%expect_test _ =
          (arg (Name (loc (:1:36 :1:41)) (ident uint8)))))))
      (ret_type ((Name (loc (:1:45 :1:50)) (ident int64)))) (extern_abi C)
      (extern_ident puts)) |}]
+
+let%expect_test _ =
+  print_parse_decl_failure {|
+    fun main!() {
+      var xs: int64[] = {0, 1, 2};
+      xs := {3, 4, 5};
+    }
+  |};
+  [%expect {| (Crunch.Parser.MenhirBasics.Error) |}]
 
 (*** Type Declarations ***)
 

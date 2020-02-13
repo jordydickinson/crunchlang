@@ -4,11 +4,8 @@ let print_parse_semantic s =
   print_s @@ Semantic.sexp_of_t semantic
 
 let print_semantic_failure s =
-  let old_elide = !Backtrace.elide in
-  Backtrace.elide := false;
-  (try print_parse_semantic s; failwith "No exception raised"
-   with e -> print_string @@ Exn.to_string e);
-  Backtrace.elide := old_elide
+  try print_parse_semantic s; failwith "No exception raised"
+  with e -> print_string @@ Exn.to_string e
 
 let%expect_test _ =
   print_parse_semantic {|

@@ -70,7 +70,7 @@ expr_eof:
 decl:
   | "type"; ident = IDENT; "="; binding = type_expr; ";"
     { Decl.type_ ~loc:$loc ~ident ~binding }
-  | "let"; ident = IDENT; typ = type_annot; "="; binding = expr; ";"
+  | "let" ident = IDENT typ = type_annot "=" binding = init_expr ";"
     { Decl.let_ ~loc:$loc ~ident ~typ ~binding }
   | "fun"; ident = BANG_IDENT;
     "("; params = separated_list(",", param); ")";
@@ -109,9 +109,9 @@ stmt:
   | e = expr; ";" { Stmt.expr e }
   | dst = expr; ":="; src = expr; ";"
     { Stmt.assign ~loc:$loc ~dst ~src }
-  | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
+  | "let" ident = IDENT typ = type_annot? "=" binding = init_expr ";"
     { Stmt.let_ ~loc:$loc ~ident ~typ ~binding }
-  | "var"; ident = IDENT; typ = type_annot?; "="; binding = expr; ";"
+  | "var" ident = IDENT typ = type_annot? "=" binding = init_expr ";"
     { Stmt.var ~loc:$loc ~ident ~typ ~binding }
   | if_ = if_stmt { if_ }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
@@ -133,8 +133,13 @@ else_clause:
 
 expr:
   | e = infix { e }
-  | "let"; ident = IDENT; typ = type_annot?; "="; binding = expr; "in"; body = expr
+  | "let" ident = IDENT typ = type_annot? "=" binding = init_expr "in" body = expr
     { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
+  ;
+
+init_expr:
+  | e = expr { e }
+  | "{" elts = separated_array(",", init_expr) "}" { Expr.array ~loc:$loc ~elts }
   ;
 
 infix:
@@ -162,7 +167,6 @@ atom:
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
   | ident = BANG_IDENT { Expr.name ~loc:$loc ~ident }
   | "("; e = expr; ")" { e }
-  | "{"; elts = separated_array(",", expr); "}" { Expr.array ~loc:$loc ~elts }
   ;
 
 type_annot:
