@@ -21,6 +21,7 @@
 %token KW_ELSE "else"
 %token KW_RETURN "return"
 %token KW_EXTERN "extern"
+%token KW_AS "as"
 
 (* Booleans *)
 %token KW_TRUE "true"
@@ -132,7 +133,7 @@ else_clause:
   ;
 
 expr:
-  | e = infix { e }
+  | e = cast { e }
   | "let" ident = IDENT typ = type_annot? "=" binding = init_expr "in" body = expr
     { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
   ;
@@ -140,6 +141,11 @@ expr:
 init_expr:
   | e = expr { e }
   | "{" elts = separated_array(",", init_expr) "}" { Expr.array ~loc:$loc ~elts }
+  ;
+
+cast:
+  | e = infix { e }
+  | arg = infix "as" typ = type_expr { Expr.cast ~loc:$loc ~arg ~typ }
   ;
 
 infix:

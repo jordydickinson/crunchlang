@@ -43,6 +43,13 @@ let is_pointer_type ?element_type:element_is_type typ =
 let is_pointer ?element_type value =
   is_pointer_type ?element_type @@ type_of value
 
+let is_struct_type typ =
+  match classify_type typ with
+  | TypeKind.Struct -> true
+  | _ -> false
+
+let is_struct value = is_struct_type @@ type_of value
+
 let equal_lltype typ typ' =
   Poly.equal (classify_type typ) (classify_type typ')
 
@@ -87,6 +94,14 @@ let build_call callee args name builder =
   let arg_types = Array.map args ~f:type_of in
   assert (Array.equal equal_lltype param_types arg_types);
   build_call callee args name builder
+
+let build_struct_gep value idx name builder =
+  assert (is_pointer ~element_type:is_struct_type value);
+  build_struct_gep value idx name builder
+
+let build_bitcast value typ name builder =
+  assert (Poly.equal (size_of typ) (size_of @@ type_of value));
+  build_bitcast value typ name builder
 
 let append_block ctx name func =
   assert (is_pointer ~element_type:is_function_type func);

@@ -31,6 +31,7 @@ rule read =
   | "else" { KW_ELSE }
   | "return" { KW_RETURN }
   | "extern" { KW_EXTERN }
+  | "as" { KW_AS }
 
   | "true" { KW_TRUE }
   | "false" { KW_FALSE }

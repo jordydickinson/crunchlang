@@ -81,7 +81,8 @@ module Expr : sig
         typ: Type.t;
         pure: bool;
       }
-    | Coerce of {
+    | Cast of {
+        loc: Srcloc.t option;
         typ: Type.t;
         arg: t;
       }

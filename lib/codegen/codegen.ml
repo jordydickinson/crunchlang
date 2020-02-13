@@ -96,17 +96,21 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float { value; _ } ->
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
-    | Coerce { typ = Int _ as typ; arg } ->
+    | Cast { typ = Int _ as typ; arg; _ } ->
       let signed = Expr.typ arg |> Type.is_signed_exn in
       let arg = codegen_rvalue arg in
       let typ = codegen_type typ in
       (if signed then build_sext_or_bitcast else build_zext_or_bitcast)
         arg typ (value_name arg ^ ".coerced") builder
-    | Coerce _ -> assert false
+    | Cast { typ = Pointer _ as typ; arg; _ } when Type.is_kind (Expr.typ arg) Type.Kind.array ->
+      let arg = codegen_lvalue arg ~builder in
+      let elts_pointer = build_struct_gep arg 1 "&arrayelts" builder in
+      let elts = build_load elts_pointer "arrayelts" builder in
+      build_bitcast elts (codegen_type typ) "array.toptr" builder
+    | Cast _ -> assert false
     | Deref _ -> codegen_lvalue expr ~builder
     | Addr_of { arg; _ } -> codegen_lvalue arg ~builder
     | Array { elts; elt_type; _ } ->
-      let typ = codegen_type @@ Expr.typ expr in
       let size_type = i32_type @@ module_context module_ in
       let size_pointer = build_malloc size_type "arraysize" builder in
       let size = const_int size_type (Array.length elts) in
@@ -115,10 +119,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let elts_pointer = build_array_malloc elt_type size "arrayelts" builder in
       let elts = const_array elt_type @@ Array.map elts ~f:codegen_rvalue in
       ignore (build_store elts elts_pointer builder : llvalue);
-      let box_pointer = build_malloc typ "arraybox" builder in
-      let box = const_struct (module_context module_) [|size_pointer; elts_pointer|] in
-      ignore (build_store box box_pointer builder : llvalue);
-      box_pointer
+      const_struct (module_context module_) [|size_pointer; elts_pointer|]
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let name = if Type.equal Type.void @@ Type.ret_exn @@ Expr.typ callee

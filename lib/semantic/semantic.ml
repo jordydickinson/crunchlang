@@ -182,7 +182,8 @@ module Expr = struct
         typ: Type.t;
         pure: bool;
       }
-    | Coerce of {
+    | Cast of {
+        loc: Srcloc.t option [@sexp.option];
         typ: Type.t;
         arg: t;
       }
@@ -231,15 +232,16 @@ module Expr = struct
     | Array { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
-    | Let_in { loc; _ } -> loc
-    | Coerce { arg; _ } -> loc arg
+    | Let_in { loc; _ }
+    | Cast { loc = Some loc; _ } -> loc
+    | Cast { arg; _ } -> loc arg
 
   let rec typ = function
     | Bool _ -> Type.bool
     | Float _ -> Type.float
     | Int { typ; _ }
     | Name { typ; _ }
-    | Coerce { typ; _ }
+    | Cast { typ; _ }
     | Deref { typ; _ }
     | Addr_of { typ; _ } -> typ
     | Array { elt_type; _ } -> Type.array elt_type
@@ -251,7 +253,7 @@ module Expr = struct
     | Int _ -> true
     | Binop { lhs; rhs; _ } -> is_promotable lhs && is_promotable rhs
     | Array { elts; _ } -> Array.for_all elts ~f:is_promotable
-    | Bool _ | Float _ | Name _ | Coerce _
+    | Bool _ | Float _ | Name _ | Cast _
     | Deref _ | Addr_of _ | Call _ | Let_in _  -> false
 
   let rec impurities = function
@@ -259,7 +261,7 @@ module Expr = struct
     | Name { pure = true; _ }
     | Deref { pure = true; _ } -> String.Set.empty
     | Name { ident; _ } -> String.Set.singleton ident
-    | Coerce { arg; _ }
+    | Cast { arg; _ }
     | Deref { arg; _ }
     | Addr_of { arg; _ } -> impurities arg
     | Array { elts; _ } ->
@@ -274,7 +276,7 @@ module Expr = struct
   let rec is_lvalue = function
     | Name { pure = false; _ }
     | Deref { pure = false; _ } -> true
-    | Coerce { arg; _ } -> is_lvalue arg
+    | Cast { arg; _ } -> is_lvalue arg
     | Name _ | Deref _ -> false
     | Int _ | Bool _ | Float _
     | Addr_of _ | Array _ | Binop _ | Call _
@@ -300,6 +302,9 @@ module Expr = struct
                   else Type.int64) in
     Int { loc; typ; value }
 
+  and cast ?loc ~typ arg =
+    Cast { loc; typ; arg }
+
   and coerce ~typ:(typ': Type.t) arg =
     match arg, typ' with
     | _ when not @@ [%equal: Type.t option] (Type.unify typ' @@ typ arg) (Some typ')
@@ -309,7 +314,7 @@ module Expr = struct
     | Binop { loc; op; lhs; rhs }, _ ->
       binop ~loc ~op ~lhs:(coerce ~typ:typ' lhs) ~rhs:(coerce ~typ:typ' rhs)
     | Array { loc; elt_type = _; elts }, Array elt_type -> array ~loc ~elt_type elts
-    | _ -> Coerce { typ = typ'; arg }
+    | _ -> cast ~typ:typ' arg
 
   and array ~loc ~elt_type elts =
     let elts = Array.map elts ~f:(coerce ~typ:elt_type) in
@@ -343,6 +348,9 @@ module Expr = struct
       match Env.lookup env ident with
       | Some { typ; pure } -> name ~loc ~ident ~typ ~pure
       | None -> raise @@ Unbound_identifier { loc; ident }
+
+    let cast ~loc ~typ arg = fun env ->
+      cast ~loc ~typ:(Type.Builder.build typ env) (build arg env)
 
     let deref ~loc ~arg =
       typecheck_kind ~kind:Type.Kind.pointer arg;
@@ -423,6 +431,7 @@ module Expr = struct
       | Float { loc; value } -> float ~loc ~value
       | Name { loc; ident } -> name ~loc ~ident
       | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:of_ast)
+      | Cast { loc; arg; typ } -> cast ~loc (of_ast arg) ~typ:(Type.Builder.of_ast typ)
       | Deref { loc; arg } -> deref ~loc ~arg:(of_ast arg)
       | Addr_of { loc; arg } -> addr_of ~loc ~arg:(of_ast arg)
       | Binop { loc; op; lhs; rhs } ->

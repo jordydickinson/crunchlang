@@ -682,10 +682,7 @@ let%expect_test _ =
       %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 3))
       %arrayelts = bitcast i8* %malloccall1 to i32*
       store [3 x i32] [i32 1, i32 2, i32 3], i32* %arrayelts
-      %malloccall2 = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i64), i64 2) to i32))
-      %arraybox = bitcast i8* %malloccall2 to { i32*, i32* }*
-      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %arraybox
-      store { i32*, i32* }* %arraybox, { i32*, i32* }* %xs
+      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %xs
       ret void
     }
 
@@ -772,6 +769,47 @@ let%expect_test _ =
       call void @exit(i32 0)
       ret void
     }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main!() {
+      var xs = {1, 2, 3};
+      var xs_ptr: uint8* = xs as uint8*;
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define void @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %xs = alloca { i32*, i32* }
+      %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
+      %arraysize = bitcast i8* %malloccall to i32*
+      store i32 3, i32* %arraysize
+      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 3))
+      %arrayelts = bitcast i8* %malloccall1 to i32*
+      store [3 x i32] [i32 1, i32 2, i32 3], i32* %arrayelts
+      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %xs
+      %xs_ptr = alloca i8*
+      %"&arrayelts" = getelementptr inbounds { i32*, i32* }, { i32*, i32* }* %xs, i32 0, i32 1
+      %arrayelts2 = load i32*, i32** %"&arrayelts"
+      %array.toptr = bitcast i32* %arrayelts2 to i8*
+      store i8* %array.toptr, i8** %xs_ptr
+      ret void
+    }
+
+    declare noalias i8* @malloc(i32)
 
     define void @init.ctors() {
     entry:

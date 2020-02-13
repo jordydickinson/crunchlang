@@ -86,7 +86,7 @@ let%expect_test _ =
             (typ (Int (bitwidth 32) (signed true))))))
          (Return (loc (:1:63 :1:72))
           (arg
-           (Coerce (typ (Int (bitwidth 64) (signed true)))
+           (Cast (typ (Int (bitwidth 64) (signed true)))
             (arg
              (Name (loc (:1:70 :1:71)) (ident x)
               (typ (Int (bitwidth 32) (signed true))) (pure false)))))))))
@@ -124,7 +124,7 @@ let%expect_test _ =
             (typ (Int (bitwidth 32) (signed true))))))
          (Return (loc (:1:49 :1:58))
           (arg
-           (Coerce (typ (Int (bitwidth 64) (signed true)))
+           (Cast (typ (Int (bitwidth 64) (signed true)))
             (arg
              (Name (loc (:1:56 :1:57)) (ident x)
               (typ (Int (bitwidth 32) (signed true))) (pure true)))))))))

@@ -35,6 +35,11 @@ module Expr : sig
         loc: Srcloc.t;
         elts: t array;
       }
+    | Cast of {
+        loc: Srcloc.t;
+        typ: Type_expr.t;
+        arg: t;
+      }
     | Deref of {
         loc: Srcloc.t;
         arg: t;
