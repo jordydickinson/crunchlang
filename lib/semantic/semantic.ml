@@ -96,6 +96,7 @@ end = struct
 
   let prelude =
     empty
+    |> bind_type ~ident:"uint8" ~typ:Type.uint8
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float

@@ -115,9 +115,11 @@ let codegen_cf module_ (cf: Control_flow.t) =
       box_pointer
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
+      let name = if Type.equal Type.void @@ Type.ret_exn @@ Expr.typ callee
+        then "" else "calltmp" in
       let callee = codegen_rvalue callee in
       let args = Array.of_list_map args ~f:codegen_rvalue in
-      build_call callee args "calltmp" builder
+      build_call callee args name builder
     | Let_in { ident; binding; body; _ } ->
       let binding = codegen_rvalue binding in
       Hashtbl.set names ~key:ident ~data:(Value binding);
@@ -205,7 +207,13 @@ let codegen_cf module_ (cf: Control_flow.t) =
   and codegen_decl' decl =
     match decl with
     | Type _ -> ()
-    | Fun_extern _ -> assert false
+    | Fun_extern { ident; typ; extern_abi; extern_ident; _ } ->
+      let abi = match extern_abi with
+        | "C" -> CallConv.c
+        | _ -> assert false in
+      let extern = declare_function extern_ident (codegen_type typ) module_ in
+      set_function_call_conv abi extern;
+      Hashtbl.set names ~key:ident ~data:(Value extern);
     | Let { loc = _; ident; typ; binding } ->
       let typ = codegen_type typ in
       let global = define_global ident (undef typ) module_ in

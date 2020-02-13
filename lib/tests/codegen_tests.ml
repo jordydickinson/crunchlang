@@ -724,3 +724,52 @@ let%expect_test _ =
     entry:
       ret void
     } |}]
+
+let%expect_test _ =
+  print_ir {|
+    extern("C")
+    fun puts!(str: uint8*): int64 = "puts";
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    declare i64 @puts(i8*)
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    extern("C")
+    fun exit!(status: int64) = "exit";
+
+    fun main!() {
+      exit!(0);
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    declare void @exit(i64)
+
+    define void @"main!"() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      call void @exit(i64 0)
+      ret void
+    }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
