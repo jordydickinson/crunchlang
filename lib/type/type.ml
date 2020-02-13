@@ -13,6 +13,7 @@ type t =
 [@@deriving equal, sexp_of, variants]
 
 let uint8 = int ~bitwidth:8 ~signed:false
+let int32 = int ~bitwidth:32 ~signed:true
 let int64 = int ~bitwidth:64 ~signed:true
 
 let rec unify typ typ' =
@@ -22,7 +23,6 @@ let rec unify typ typ' =
     let bitwidth = max bitwidth bitwidth' in
     let signed = signed || signed' in
     Some (int ~bitwidth ~signed)
-  | Pointer elt, Pointer elt' -> let%map.Option elt = unify elt elt' in pointer elt
   | Array elt, Array elt' -> let%map.Option elt = unify elt elt' in array elt
   | _ -> None
 
@@ -50,6 +50,10 @@ let deref_exn typ =
   match typ with
   | Pointer typ -> typ
   | _ -> invalid_arg "Not a pointer type"
+
+let is_signed_exn = function
+  | Int { signed; _ } -> signed
+  | _ -> invalid_arg "Not an integer type"
 
 module Kind = struct
   type concrete = t

@@ -15,6 +15,7 @@ type t = private
 val void : t
 val bool : t
 val uint8 : t
+val int32 : t
 val int64 : t
 val float : t
 val pointer : t -> t
@@ -30,6 +31,7 @@ val params : t -> t list option
 val params_or_error : t -> t list Or_error.t
 val params_exn : t -> t list
 val deref_exn : t -> t
+val is_signed_exn : t -> bool
 
 module Kind : sig
   type concrete = t

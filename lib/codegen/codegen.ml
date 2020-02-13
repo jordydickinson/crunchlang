@@ -96,6 +96,12 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float { value; _ } ->
       const_float (codegen_type @@ Expr.typ expr) value
     | Name { ident; _ } -> codegen_rvalue_name ident ~builder
+    | Coerce { typ = Int _ as typ; arg } ->
+      let signed = Expr.typ arg |> Type.is_signed_exn in
+      let arg = codegen_rvalue arg in
+      let typ = codegen_type typ in
+      (if signed then build_sext_or_bitcast else build_zext_or_bitcast)
+        arg typ (value_name arg ^ ".coerced") builder
     | Coerce _ -> assert false
     | Deref _ -> codegen_lvalue expr ~builder
     | Addr_of { arg; _ } -> codegen_lvalue arg ~builder

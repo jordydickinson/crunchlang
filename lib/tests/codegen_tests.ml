@@ -197,10 +197,11 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %x = alloca i64
-      store i64 1, i64* %x
-      %x1 = load i64, i64* %x
-      ret i64 %x1
+      %x = alloca i32
+      store i32 1, i32* %x
+      %x1 = load i32, i32* %x
+      %x1.coerced = sext i32 %x1 to i64
+      ret i64 %x1.coerced
     }
 
     define void @init.ctors() {
@@ -227,11 +228,12 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %x = alloca i64
-      store i64 1, i64* %x
-      store i64 2, i64* %x
-      %x1 = load i64, i64* %x
-      ret i64 %x1
+      %x = alloca i32
+      store i32 1, i32* %x
+      store i32 2, i32* %x
+      %x1 = load i32, i32* %x
+      %x1.coerced = sext i32 %x1 to i64
+      ret i64 %x1.coerced
     }
 
     define void @init.ctors() {
@@ -259,17 +261,19 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %x = alloca i64
-      store i64 1, i64* %x
-      %y = alloca i64
-      store i64 2, i64* %y
-      %x1 = load i64, i64* %x
-      %y2 = load i64, i64* %y
-      %addtmp = add i64 %x1, %y2
-      store i64 %addtmp, i64* %x
-      %x3 = load i64, i64* %x
-      %y4 = load i64, i64* %y
-      %addtmp5 = add i64 %x3, %y4
+      %x = alloca i32
+      store i32 1, i32* %x
+      %y = alloca i32
+      store i32 2, i32* %y
+      %x1 = load i32, i32* %x
+      %y2 = load i32, i32* %y
+      %addtmp = add i32 %x1, %y2
+      store i32 %addtmp, i32* %x
+      %x3 = load i32, i32* %x
+      %x3.coerced = sext i32 %x3 to i64
+      %y4 = load i32, i32* %y
+      %y4.coerced = sext i32 %y4 to i64
+      %addtmp5 = add i64 %x3.coerced, %y4.coerced
       ret i64 %addtmp5
     }
 
@@ -376,11 +380,11 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun add1!(x: int64): int64 {
+    fun add1!(x: int32): int32 {
       return x + 1;
     }
 
-    fun main!(): int64 {
+    fun main!(): int32 {
       var x = 1;
       x := add1!(x);
       return x;
@@ -392,27 +396,27 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    define i64 @add1(i64 %x) {
+    define i32 @add1(i32 %x) {
     entry:
       br label %body
 
     body:                                             ; preds = %entry
-      %addtmp = add i64 %x, 1
-      ret i64 %addtmp
+      %addtmp = add i32 %x, 1
+      ret i32 %addtmp
     }
 
-    define i64 @main() {
+    define i32 @main() {
     entry:
       br label %body
 
     body:                                             ; preds = %entry
-      %x = alloca i64
-      store i64 1, i64* %x
-      %x1 = load i64, i64* %x
-      %calltmp = call i64 @add1(i64 %x1)
-      store i64 %calltmp, i64* %x
-      %x2 = load i64, i64* %x
-      ret i64 %x2
+      %x = alloca i32
+      store i32 1, i32* %x
+      %x1 = load i32, i32* %x
+      %calltmp = call i32 @add1(i32 %x1)
+      store i32 %calltmp, i32* %x
+      %x2 = load i32, i32* %x
+      ret i32 %x2
     }
 
     define void @init.ctors() {
@@ -671,17 +675,17 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %xs = alloca { i32*, i64* }
+      %xs = alloca { i32*, i32* }
       %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
       %arraysize = bitcast i8* %malloccall to i32*
       store i32 3, i32* %arraysize
-      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i64* getelementptr (i64, i64* null, i32 1) to i32), i32 3))
-      %arrayelts = bitcast i8* %malloccall1 to i64*
-      store [3 x i64] [i64 1, i64 2, i64 3], i64* %arrayelts
+      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 3))
+      %arrayelts = bitcast i8* %malloccall1 to i32*
+      store [3 x i32] [i32 1, i32 2, i32 3], i32* %arrayelts
       %malloccall2 = tail call i8* @malloc(i32 trunc (i64 mul nuw (i64 ptrtoint (i1** getelementptr (i1*, i1** null, i32 1) to i64), i64 2) to i32))
-      %arraybox = bitcast i8* %malloccall2 to { i32*, i64* }*
-      store { i32*, i64* } { i32* %arraysize, i64* %arrayelts }, { i32*, i64* }* %arraybox
-      store { i32*, i64* }* %arraybox, { i32*, i64* }* %xs
+      %arraybox = bitcast i8* %malloccall2 to { i32*, i32* }*
+      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %arraybox
+      store { i32*, i32* }* %arraybox, { i32*, i32* }* %xs
       ret void
     }
 
@@ -696,7 +700,7 @@ let%expect_test _ =
   print_ir {|
     fun main!() {
       var x = 1;
-      var y: int64* = &x;
+      var y: int32* = &x;
       *y := 2;
     }
   |};
@@ -711,12 +715,12 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %x = alloca i64
-      store i64 1, i64* %x
-      %y = alloca i64*
-      store i64* %x, i64** %y
-      %y.deref = load i64*, i64** %y
-      store i64 2, i64* %y.deref
+      %x = alloca i32
+      store i32 1, i32* %x
+      %y = alloca i32*
+      store i32* %x, i32** %y
+      %y.deref = load i32*, i32** %y
+      store i32 2, i32* %y.deref
       ret void
     }
 
@@ -728,7 +732,7 @@ let%expect_test _ =
 let%expect_test _ =
   print_ir {|
     extern("C")
-    fun puts!(str: uint8*): int64 = "puts";
+    fun puts!(str: uint8*): int32 = "puts";
   |};
   [%expect {|
     ; ModuleID = 'test'
@@ -736,7 +740,7 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    declare i64 @puts(i8*)
+    declare i32 @puts(i8*)
 
     define void @init.ctors() {
     entry:
@@ -746,7 +750,7 @@ let%expect_test _ =
 let%expect_test _ =
   print_ir {|
     extern("C")
-    fun exit!(status: int64) = "exit";
+    fun exit!(status: int32) = "exit";
 
     fun main!() {
       exit!(0);
@@ -758,14 +762,14 @@ let%expect_test _ =
 
     @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-    declare void @exit(i64)
+    declare void @exit(i32)
 
     define void @main() {
     entry:
       br label %body
 
     body:                                             ; preds = %entry
-      call void @exit(i64 0)
+      call void @exit(i32 0)
       ret void
     }
 

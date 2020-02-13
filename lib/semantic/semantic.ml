@@ -97,6 +97,7 @@ end = struct
   let prelude =
     empty
     |> bind_type ~ident:"uint8" ~typ:Type.uint8
+    |> bind_type ~ident:"int32" ~typ:Type.int32
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
     |> bind_type ~ident:"float" ~typ:Type.float
@@ -108,7 +109,7 @@ module Type = struct
   let rec promote typ =
     match typ with
     | Void | Bool | Float | Pointer _ | Struct _ | Fun _ -> typ
-    | Int { bitwidth; signed = _ } -> if bitwidth < 64 then int64 else typ
+    | Int { bitwidth; signed = _ } -> if bitwidth < 32 then int32 else typ
     | Array elt -> array @@ promote elt
 
   module Builder : sig
@@ -234,9 +235,9 @@ module Expr = struct
     | Coerce { arg; _ } -> loc arg
 
   let rec typ = function
-    | Int _ -> Type.int64
     | Bool _ -> Type.bool
     | Float _ -> Type.float
+    | Int { typ; _ }
     | Name { typ; _ }
     | Coerce { typ; _ }
     | Deref { typ; _ }
@@ -539,7 +540,13 @@ module Stmt = struct
     let let_ ~loc ~typ ~ident ~binding = fun env ->
       let typ = Option.map typ ~f:(fun typ -> Type.Builder.build typ env) in
       let binding = Expr.Builder.build binding env in
-      let typ = Option.value typ ~default:(Expr.typ binding) in
+      let binding = match typ with
+        | None ->
+          if Expr.is_promotable binding
+          then Expr.coerce ~typ:(Type.promote @@ Expr.typ binding) binding
+          else binding
+        | Some typ -> Expr.coerce ~typ binding in
+      let typ = Expr.typ binding in
       let env = Env.bind env ~ident ~typ:(Expr.typ binding) ~pure:true in
       (let_) ~loc ~typ ~ident ~binding, env
 
@@ -552,7 +559,7 @@ module Stmt = struct
           then Expr.coerce ~typ:(Type.promote @@ Expr.typ binding) binding
           else binding
         | Some typ -> Expr.coerce ~typ binding in
-      let typ = Option.value typ ~default:(Expr.typ binding) in
+      let typ = Expr.typ binding in
       let env = Env.bind env ~ident ~typ:(Expr.typ binding) ~pure:false in
       var ~loc ~typ ~ident ~binding, env
 
