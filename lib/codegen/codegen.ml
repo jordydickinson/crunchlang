@@ -182,6 +182,12 @@ let codegen_cf module_ (cf: Control_flow.t) =
         end
   in
 
+  let rename_func ident ~pure =
+    if pure
+    then ident ^ "$pure"
+    else String.chop_suffix_exn ident ~suffix:"!"
+  in
+
   let ctor_type = codegen_type (Type.fun_ ~params:[] ~ret:Type.void) in
 
   let ctors = Stack.create () in
@@ -226,7 +232,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       add_ctor ctor_func;
       Hashtbl.set names ~key:ident ~data:(Pointer global);
     | Fun_expr { ident; params; typ; body; _ } ->
-      let func = define_function ident (codegen_type typ) module_ in
+      let func = define_function (rename_func ident ~pure:true) (codegen_type typ) module_ in
       Hashtbl.set names ~key:ident ~data:(Value func);
       List.iteri params ~f:begin fun i ident ->
         let value = param func i in
@@ -237,9 +243,9 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let builder = builder_at_end (module_context module_) entry in
       let value = codegen_rvalue body ~builder in
       ignore (build_ret value builder : llvalue)
-    | Fun { loc = _; ident; params; typ; body; _ } ->
+    | Fun { ident; params; typ; body; pure; _ } ->
       (* Definition *)
-      let func = define_function ident (codegen_type typ) module_ in
+      let func = define_function (rename_func ident ~pure) (codegen_type typ) module_ in
       List.iteri params ~f:begin fun i ident ->
         let value = param func i in
         set_value_name ident value;
