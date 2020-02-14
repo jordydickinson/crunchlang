@@ -2,4 +2,5 @@
  (public_name crunchc)
  (libraries core crunch)
  (package crunch)
+ (preprocess (pps ppx_jane))
  (flags :standard -open Core))
