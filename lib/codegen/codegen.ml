@@ -214,6 +214,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
         | _ -> assert false in
       let extern = declare_function extern_ident (codegen_type typ) module_ in
       set_function_call_conv abi extern;
+      Llvm_analysis.assert_valid_function extern;
       Hashtbl.set names ~key:ident ~data:(Value extern);
     | Let { loc = _; ident; typ; binding } ->
       let typ = codegen_type typ in
@@ -237,7 +238,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let entry = entry_block func in
       let builder = builder_at_end (module_context module_) entry in
       let value = codegen_rvalue body ~builder in
-      ignore (build_ret value builder : llvalue)
+      ignore (build_ret value builder : llvalue);
+      Llvm_analysis.assert_valid_function func;
     | Fun { ident; params; typ; body; pure; _ } ->
       (* Definition *)
       let func = define_function (rename_func ident ~pure) (codegen_type typ) module_ in
@@ -253,21 +255,8 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let entry_builder = builder_at_end (module_context module_) entry in
       ignore (build_br body entry_builder : llvalue);
 
-      (* Check for block terminators *)
-      begin
-        let implicit_return = Type.equal (Type.ret_exn typ) Type.void in
-        Array.iter (basic_blocks func)
-          ~f:begin fun block ->
-            match block_terminator block with
-            | Some _ -> ()
-            | None ->
-              if implicit_return then begin
-                let builder = builder_at_end (module_context module_) block in
-                ignore (build_ret_void builder : llvalue)
-              end else
-                failwith "Missing return in non-void function"
-          end
-      end;
+      (* Validate *)
+      Llvm_analysis.assert_valid_function func;
 
       (* Declare *)
       Hashtbl.set names ~key:ident ~data:(Value func);
