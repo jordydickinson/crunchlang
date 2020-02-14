@@ -675,18 +675,10 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %xs = alloca { i32*, i32* }
-      %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-      %arraysize = bitcast i8* %malloccall to i32*
-      store i32 3, i32* %arraysize
-      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 3))
-      %arrayelts = bitcast i8* %malloccall1 to i32*
-      store [3 x i32] [i32 1, i32 2, i32 3], i32* %arrayelts
-      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %xs
+      %xs = alloca [3 x i32]
+      store [3 x i32] [i32 1, i32 2, i32 3], [3 x i32]* %xs
       ret void
     }
-
-    declare noalias i8* @malloc(i32)
 
     define void @init.ctors() {
     entry:
@@ -793,23 +785,57 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      %xs = alloca { i32*, i32* }
-      %malloccall = tail call i8* @malloc(i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32))
-      %arraysize = bitcast i8* %malloccall to i32*
-      store i32 3, i32* %arraysize
-      %malloccall1 = tail call i8* @malloc(i32 mul (i32 ptrtoint (i32* getelementptr (i32, i32* null, i32 1) to i32), i32 3))
-      %arrayelts = bitcast i8* %malloccall1 to i32*
-      store [3 x i32] [i32 1, i32 2, i32 3], i32* %arrayelts
-      store { i32*, i32* } { i32* %arraysize, i32* %arrayelts }, { i32*, i32* }* %xs
+      %xs = alloca [3 x i32]
+      store [3 x i32] [i32 1, i32 2, i32 3], [3 x i32]* %xs
       %xs_ptr = alloca i8*
-      %"&arrayelts" = getelementptr inbounds { i32*, i32* }, { i32*, i32* }* %xs, i32 0, i32 1
-      %arrayelts2 = load i32*, i32** %"&arrayelts"
-      %array.toptr = bitcast i32* %arrayelts2 to i8*
-      store i8* %array.toptr, i8** %xs_ptr
+      %xs.0 = getelementptr [3 x i32], [3 x i32]* %xs, i32 0, i32 0
+      %xs.0.cast = bitcast i32* %xs.0 to i8*
+      store i8* %xs.0.cast, i8** %xs_ptr
       ret void
     }
 
-    declare noalias i8* @malloc(i32)
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    extern("C")
+    fun puts!(str: uint8*): int32 = "puts";
+
+    fun main!() {
+        var msg: uint8[] = {
+            // "Hello "
+            72, 101, 108, 108, 111, 32,
+            // "world\n\0"
+            119, 111, 114, 108, 100, 10, 0
+        };
+
+        var _ = puts!(msg as uint8*);
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    declare i32 @puts(i8*)
+
+    define void @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %msg = alloca [13 x i8]
+      store [13 x i8] c"Hello world\0A\00", [13 x i8]* %msg
+      %_ = alloca i32
+      %msg.0 = getelementptr [13 x i8], [13 x i8]* %msg, i32 0, i32 0
+      %calltmp = call i32 @puts(i8* %msg.0)
+      store i32 %calltmp, i32* %_
+      ret void
+    }
 
     define void @init.ctors() {
     entry:

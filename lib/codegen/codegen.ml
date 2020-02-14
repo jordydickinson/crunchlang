@@ -36,17 +36,12 @@ let codegen_cf module_ (cf: Control_flow.t) =
   let names = String.Table.create () in
 
   let rec codegen_type (typ: Type.t) =
-    let codegen_array_type (elt: Type.t) =
-      let elts_type = pointer_type @@ codegen_type elt in
-      let size_type = pointer_type @@ i32_type @@ module_context module_ in
-      struct_type (module_context module_) [|size_type; elts_type|]
-    in
     match typ with
     | Void -> void_type (module_context module_)
     | Bool -> i1_type (module_context module_)
     | Int { bitwidth; signed = _ } -> integer_type (module_context module_) bitwidth
     | Float -> double_type (module_context module_)
-    | Array elt -> codegen_array_type elt
+    | Array { elt; size } -> array_type (codegen_type elt) size
     | Struct _ -> assert false
     | Pointer typ -> pointer_type @@ codegen_type typ
     | Fun { params; ret } ->
@@ -104,22 +99,15 @@ let codegen_cf module_ (cf: Control_flow.t) =
         arg typ (value_name arg ^ ".coerced") builder
     | Cast { typ = Pointer _ as typ; arg; _ } when Type.is_kind (Expr.typ arg) Type.Kind.array ->
       let arg = codegen_lvalue arg ~builder in
-      let elts_pointer = build_struct_gep arg 1 "&arrayelts" builder in
-      let elts = build_load elts_pointer "arrayelts" builder in
-      build_bitcast elts (codegen_type typ) "array.toptr" builder
+      let zero = const_int (codegen_type Type.int32) 0 in
+      let eltptr = build_gep arg [|zero; zero|] (value_name arg ^ ".0") builder in
+      build_bitcast eltptr (codegen_type typ) (value_name eltptr ^ ".cast") builder
     | Cast _ -> assert false
     | Deref _ -> codegen_lvalue expr ~builder
     | Addr_of { arg; _ } -> codegen_lvalue arg ~builder
-    | Array { elts; elt_type; _ } ->
-      let size_type = i32_type @@ module_context module_ in
-      let size_pointer = build_malloc size_type "arraysize" builder in
-      let size = const_int size_type (Array.length elts) in
-      ignore (build_store size size_pointer builder : llvalue);
-      let elt_type = codegen_type elt_type in
-      let elts_pointer = build_array_malloc elt_type size "arrayelts" builder in
-      let elts = const_array elt_type @@ Array.map elts ~f:codegen_rvalue in
-      ignore (build_store elts elts_pointer builder : llvalue);
-      const_struct (module_context module_) [|size_pointer; elts_pointer|]
+    | Array { elts; typ = Array { elt; _ }; _ } ->
+      const_array (codegen_type elt) (Array.map elts ~f:codegen_rvalue)
+    | Array _ -> assert false
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let name = if Type.equal Type.void @@ Type.ret_exn @@ Expr.typ callee

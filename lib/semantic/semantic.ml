@@ -110,7 +110,7 @@ module Type = struct
     match typ with
     | Void | Bool | Float | Pointer _ | Struct _ | Fun _ -> typ
     | Int { bitwidth; signed = _ } -> if bitwidth < 32 then int32 else typ
-    | Array elt -> array @@ promote elt
+    | Array { elt; size } -> array ~elt:(promote elt) ~size
 
   module Builder : sig
     type typ = t
@@ -136,8 +136,8 @@ module Type = struct
     let pointer arg = fun env ->
       pointer @@ arg env
 
-    let array arg = fun env ->
-      array @@ arg env
+    let array ~elt ~size = fun env ->
+      array ~elt:(build elt env) ~size
 
     let fun_ ~params ~ret = fun env ->
       let ret = ret env in
@@ -153,7 +153,7 @@ module Type = struct
       match type_expr with
       | Name { loc; ident }  -> of_name ~loc ~ident
       | Pointer { loc = _; arg } -> pointer @@ of_ast arg
-      | Array { loc = _; arg } -> array @@ of_ast arg
+      | Array { loc = _; arg } -> array ~elt:(of_ast arg) ~size:0
       | Struct { loc = _; fields } -> struct_ @@ List.map fields
           ~f:(fun (ident, typ) -> ident, of_ast typ)
   end
@@ -201,7 +201,7 @@ module Expr = struct
     | Array of {
         loc: Srcloc.t;
         elts: t array;
-        elt_type: Type.t;
+        typ: Type.t;
       }
     | Binop of {
         loc: Srcloc.t;
@@ -243,8 +243,8 @@ module Expr = struct
     | Name { typ; _ }
     | Cast { typ; _ }
     | Deref { typ; _ }
-    | Addr_of { typ; _ } -> typ
-    | Array { elt_type; _ } -> Type.array elt_type
+    | Addr_of { typ; _ }
+    | Array { typ; _ } -> typ
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
     | Let_in { body; _ } -> typ body
@@ -306,24 +306,32 @@ module Expr = struct
     Cast { loc; typ; arg }
 
   and coerce ~typ:(typ': Type.t) arg =
-    match arg, typ' with
-    | _ when not @@ [%equal: Type.t option] (Type.unify typ' @@ typ arg) (Some typ')
-      -> raise @@ Coercion_error { loc = loc arg; src_type = typ arg; dst_type = typ' }
-    | _  when Type.equal typ' @@ typ arg -> arg
+    match arg, Type.union typ' @@ typ arg with
+    | _, None ->
+      raise @@ Coercion_error { loc = loc arg; src_type = typ arg; dst_type = typ' }
+    | _ when Type.equal typ' @@ typ arg -> arg
     | Int { loc; value; typ = _ }, _ -> int ~loc ~typ:typ' value
     | Binop { loc; op; lhs; rhs }, _ ->
       binop ~loc ~op ~lhs:(coerce ~typ:typ' lhs) ~rhs:(coerce ~typ:typ' rhs)
-    | Array { loc; elt_type = _; elts }, Array elt_type -> array ~loc ~elt_type elts
+    | Array { loc; typ = _; elts }, Some typ' ->
+      array ~loc ~typ:typ' elts
     | _ -> cast ~typ:typ' arg
 
-  and array ~loc ~elt_type elts =
-    let elts = Array.map elts ~f:(coerce ~typ:elt_type) in
-    Array { loc; elt_type; elts }
+  and array ?typ:(typ': Type.t option) ~loc elts =
+    let elt_type = if Array.length elts = 0 then Type.void else typ elts.(0) in
+    let typ = Option.value typ'
+        ~default:(Type.array ~elt:elt_type ~size:(Array.length elts)) in
+    match typ with
+    | Array { elt; size } ->
+      assert (size = Array.length elts);
+      let elts = Array.map elts ~f:(coerce ~typ:elt) in
+      Array { loc; typ; elts }
+    | _ -> assert false
 
   and binop ~loc ~op:Bop.Add ~lhs ~rhs =
     typecheck_kind ~kind:Type.Kind.numeric lhs;
     typecheck_kind ~kind:Type.Kind.numeric rhs;
-    let typ = Type.unify (typ lhs) (typ rhs) |> Option.value_exn in
+    let typ = Type.union (typ lhs) (typ rhs) |> Option.value_exn in
     Binop { loc; op = Bop.Add; lhs = coerce ~typ lhs; rhs = coerce ~typ rhs }
 
   module Builder : sig
@@ -371,20 +379,9 @@ module Expr = struct
       let arg = arg env in
       addr_of ~loc ~arg
 
-    let array ~loc ~elts =
-      if Array.is_empty elts then
-        array ~loc ~elt_type:Type.void elts
-      else begin
-        let elt_type = typ elts.(0) in
-        for i = 1 to Array.length elts - 1 do
-          typecheck ~typ:elt_type elts.(i)
-        done;
-        array ~loc ~elt_type elts
-      end
-
     let array ~loc ~elts = fun env ->
-      let elts = Array.map elts ~f:(fun elt -> elt env) in
-      array ~loc ~elts
+      let elts = Array.map elts ~f:(fun elt -> build elt env) in
+      array ~loc elts
 
     let binop ~loc ~op ~lhs ~rhs = fun env ->
       binop ~loc ~op ~lhs:(lhs env) ~rhs:(rhs env)

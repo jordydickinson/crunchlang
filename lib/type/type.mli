@@ -4,13 +4,13 @@ type t = private
   | Int of { bitwidth: int; signed: bool }
   | Float
   | Pointer of t
-  | Array of t
+  | Array of { elt: t; size: int }
   | Struct of (string * t) list
   | Fun of {
       params: t list;
       ret: t;
     }
-[@@deriving equal, sexp_of]
+[@@deriving equal, compare, hash, sexp_of]
 
 val void : t
 val bool : t
@@ -19,11 +19,11 @@ val int32 : t
 val int64 : t
 val float : t
 val pointer : t -> t
-val array : t -> t
+val array : elt:t -> size:int -> t
 val struct_ : (string * t) list -> t
 val fun_ : params:t list -> ret:t -> t
 
-val unify : t -> t -> t option
+val union : t -> t -> t option
 
 val is_fun : t -> bool
 val ret_exn : t -> t

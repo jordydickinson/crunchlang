@@ -100,7 +100,7 @@ module Expr : sig
     | Array of {
         loc: Srcloc.t;
         elts: t array;
-        elt_type: Type.t;
+        typ: Type.t;
       }
     | Binop of {
         loc: Srcloc.t;

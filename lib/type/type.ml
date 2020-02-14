@@ -4,27 +4,34 @@ type t =
   | Int of { bitwidth: int; signed: bool }
   | Float
   | Pointer of t
-  | Array of t
+  | Array of { elt: t; size: int }
   | Struct of (string * t) list
   | Fun of {
       params: t list;
       ret: t;
     }
-[@@deriving equal, sexp_of, variants]
+[@@deriving equal, compare, hash, sexp_of, variants]
 
 let uint8 = int ~bitwidth:8 ~signed:false
 let int32 = int ~bitwidth:32 ~signed:true
 let int64 = int ~bitwidth:64 ~signed:true
 
-let rec unify typ typ' =
+let rec union typ typ' =
   match typ, typ' with
   | _ when equal typ typ' -> Some typ
+  | Void, typ
+  | typ, Void -> Some typ
   | Int { bitwidth; signed }, Int { bitwidth = bitwidth'; signed = signed' } ->
-    let bitwidth = max bitwidth bitwidth' in
-    let signed = signed || signed' in
-    Some (int ~bitwidth ~signed)
-  | Array elt, Array elt' -> let%map.Option elt = unify elt elt' in array elt
-  | _ -> None
+    Option.some @@ int ~bitwidth:(max bitwidth bitwidth') ~signed:(signed || signed')
+  | Array { size = size; elt }, Array { size = size'; elt = elt' } ->
+    let%map.Option elt = union elt elt' in array ~size:(max size size') ~elt
+  | Bool, _
+  | Float, _
+  | Int _, _
+  | Array _, _
+  | Pointer _, _
+  | Struct _, _
+  | Fun _, _  -> None
 
 let is_fun = function
   | Fun _ -> true
