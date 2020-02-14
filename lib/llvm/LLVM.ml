@@ -1,10 +1,5 @@
 include Llvm
 
-let build_load value name builder =
-  match classify_type @@ type_of value with
-  | TypeKind.Pointer -> build_load value name builder
-  | _ -> invalid_argf "build_load %s" (string_of_llvalue value) ()
-
 let is_integer_type ?bitwidth typ =
   match classify_type typ, bitwidth with
   | TypeKind.Integer, None -> true
