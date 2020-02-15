@@ -2,7 +2,7 @@ type t =
   | Void
   | Bool
   | Int of { bitwidth: int; signed: bool }
-  | Float
+  | Float64
   | Pointer of t
   | Array of { elt: t; size: int }
   | Struct of (string * t) list
@@ -26,7 +26,7 @@ let rec union typ typ' =
   | Array { size = size; elt }, Array { size = size'; elt = elt' } ->
     let%map.Option elt = union elt elt' in array ~size:(max size size') ~elt
   | Bool, _
-  | Float, _
+  | Float64, _
   | Int _, _
   | Array _, _
   | Pointer _, _
@@ -80,7 +80,7 @@ module Kind = struct
     match typ with
     | Void -> Void
     | Bool -> Bool
-    | Int _ | Float -> Numeric
+    | Int _ | Float64 -> Numeric
     | Pointer _ -> Pointer
     | Array _ -> Array
     | Struct _ -> Struct

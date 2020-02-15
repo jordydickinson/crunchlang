@@ -2,7 +2,7 @@ type t = private
   | Void
   | Bool
   | Int of { bitwidth: int; signed: bool }
-  | Float
+  | Float64
   | Pointer of t
   | Array of { elt: t; size: int }
   | Struct of (string * t) list
@@ -17,7 +17,7 @@ val bool : t
 val uint8 : t
 val int32 : t
 val int64 : t
-val float : t
+val float64 : t
 val pointer : t -> t
 val array : elt:t -> size:int -> t
 val struct_ : (string * t) list -> t

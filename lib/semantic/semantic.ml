@@ -100,7 +100,7 @@ end = struct
     |> bind_type ~ident:"int32" ~typ:Type.int32
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
-    |> bind_type ~ident:"float" ~typ:Type.float
+    |> bind_type ~ident:"float64" ~typ:Type.float64
 end
 
 module Type = struct
@@ -108,7 +108,7 @@ module Type = struct
 
   let rec promote typ =
     match typ with
-    | Void | Bool | Float | Pointer _ | Struct _ | Fun _ -> typ
+    | Void | Bool | Float64 | Pointer _ | Struct _ | Fun _ -> typ
     | Int { bitwidth; signed = _ } -> if bitwidth < 32 then int32 else typ
     | Array { elt; size } -> array ~elt:(promote elt) ~size
 
@@ -238,7 +238,7 @@ module Expr = struct
 
   let rec typ = function
     | Bool _ -> Type.bool
-    | Float _ -> Type.float
+    | Float _ -> Type.float64
     | Int { typ; _ }
     | Name { typ; _ }
     | Cast { typ; _ }

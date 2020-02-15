@@ -40,7 +40,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Void -> void_type (module_context module_)
     | Bool -> i1_type (module_context module_)
     | Int { bitwidth; signed = _ } -> integer_type (module_context module_) bitwidth
-    | Float -> double_type (module_context module_)
+    | Float64 -> double_type (module_context module_)
     | Array { elt; size } -> array_type (codegen_type elt) size
     | Struct _ -> assert false
     | Pointer typ -> pointer_type @@ codegen_type typ
@@ -78,7 +78,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let rhs = codegen_rvalue rhs in
       match typ with
       | Int _ -> build_add lhs rhs "addtmp" builder
-      | Float -> build_fadd lhs rhs "addtmp" builder
+      | Float64 -> build_fadd lhs rhs "addtmp" builder
       | _ -> assert false
     in
     match expr with

@@ -77,7 +77,7 @@ let%expect_test _ =
 
 let%expect_test _ =
   print_ir {|
-    fun main!(): float {
+    fun main!(): float64 {
       return 1.0 + 2.0;
     }
   |};
