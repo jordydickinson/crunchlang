@@ -2,6 +2,7 @@ type t = private
   | Void
   | Bool
   | Int of { bitwidth: int; signed: bool }
+  | Float32
   | Float64
   | Pointer of t
   | Array of { elt: t; size: int }
@@ -17,6 +18,7 @@ val bool : t
 val uint8 : t
 val int32 : t
 val int64 : t
+val float32 : t
 val float64 : t
 val pointer : t -> t
 val array : elt:t -> size:int -> t

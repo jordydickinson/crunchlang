@@ -100,6 +100,7 @@ end = struct
     |> bind_type ~ident:"int32" ~typ:Type.int32
     |> bind_type ~ident:"int64" ~typ:Type.int64
     |> bind_type ~ident:"bool" ~typ:Type.bool
+    |> bind_type ~ident:"float32" ~typ:Type.float32
     |> bind_type ~ident:"float64" ~typ:Type.float64
 end
 
@@ -108,7 +109,7 @@ module Type = struct
 
   let rec promote typ =
     match typ with
-    | Void | Bool | Float64 | Pointer _ | Struct _ | Fun _ -> typ
+    | Void | Bool | Float32 | Float64 | Pointer _ | Struct _ | Fun _ -> typ
     | Int { bitwidth; signed = _ } -> if bitwidth < 32 then int32 else typ
     | Array { elt; size } -> array ~elt:(promote elt) ~size
 
@@ -175,6 +176,7 @@ module Expr = struct
     | Float of {
         loc: Srcloc.t;
         value: float;
+        typ: Type.t;
       }
     | Name of {
         loc: Srcloc.t;
@@ -238,8 +240,8 @@ module Expr = struct
 
   let rec typ = function
     | Bool _ -> Type.bool
-    | Float _ -> Type.float64
     | Int { typ; _ }
+    | Float { typ; _ }
     | Name { typ; _ }
     | Cast { typ; _ }
     | Deref { typ; _ }
@@ -302,6 +304,10 @@ module Expr = struct
                   else Type.int64) in
     Int { loc; typ; value }
 
+  and float ?typ ~loc value =
+    let typ = Option.value typ ~default:Type.float64 in
+    Float { loc; typ; value }
+
   and cast ?loc ~typ arg =
     Cast { loc; typ; arg }
 
@@ -350,7 +356,7 @@ module Expr = struct
 
     let bool ~loc ~value = fun _ -> bool ~loc ~value
 
-    let float ~loc ~value = fun _ -> float ~loc ~value
+    let float ~loc ~value = fun _ -> float ~loc value
 
     let name ~loc ~ident = fun env ->
       match Env.lookup env ident with

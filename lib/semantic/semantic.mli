@@ -74,6 +74,7 @@ module Expr : sig
     | Float of {
         loc: Srcloc.t;
         value: float;
+        typ: Type.t;
       }
     | Name of {
         loc: Srcloc.t;

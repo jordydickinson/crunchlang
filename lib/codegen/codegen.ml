@@ -40,6 +40,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Void -> void_type (module_context module_)
     | Bool -> i1_type (module_context module_)
     | Int { bitwidth; signed = _ } -> integer_type (module_context module_) bitwidth
+    | Float32 -> float_type (module_context module_)
     | Float64 -> double_type (module_context module_)
     | Array { elt; size } -> array_type (codegen_type elt) size
     | Struct _ -> assert false
