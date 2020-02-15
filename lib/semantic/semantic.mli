@@ -103,6 +103,11 @@ module Expr : sig
         elts: t array;
         typ: Type.t;
       }
+    | Subscript of {
+        loc: Srcloc.t;
+        arg: t;
+        idx: t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;

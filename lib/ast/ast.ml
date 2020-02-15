@@ -35,6 +35,11 @@ module Expr = struct
         loc: Srcloc.t;
         elts: t array;
       }
+    | Subscript of {
+        loc: Srcloc.t;
+        arg: t;
+        idx: t;
+      }
     | Cast of {
         loc: Srcloc.t;
         typ: Type_expr.t;
@@ -76,6 +81,7 @@ module Expr = struct
     | Float { loc; _ }
     | Name { loc; _ }
     | Array { loc; _ }
+    | Subscript { loc; _ }
     | Cast { loc; _ }
     | Deref { loc; _ }
     | Addr_of { loc; _ }

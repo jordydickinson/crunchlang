@@ -56,6 +56,11 @@ let params_or_error typ =
 let params_exn typ =
   ok_exn @@ params_or_error typ
 
+let elt_exn typ =
+  match typ with
+  | Array { elt; _ } -> elt
+  | _ -> invalid_arg "Not an array type"
+
 let deref_exn typ =
   match typ with
   | Pointer typ -> typ

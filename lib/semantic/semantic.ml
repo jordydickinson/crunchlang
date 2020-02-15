@@ -205,6 +205,11 @@ module Expr = struct
         elts: t array;
         typ: Type.t;
       }
+    | Subscript of {
+        loc: Srcloc.t;
+        arg: t;
+        idx: t;
+      }
     | Binop of {
         loc: Srcloc.t;
         op: Bop.t;
@@ -232,6 +237,7 @@ module Expr = struct
     | Deref { loc; _ }
     | Addr_of { loc; _ }
     | Array { loc; _ }
+    | Subscript { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ }
@@ -247,6 +253,7 @@ module Expr = struct
     | Deref { typ; _ }
     | Addr_of { typ; _ }
     | Array { typ; _ } -> typ
+    | Subscript { arg; _ } -> Type.elt_exn @@ typ arg
     | Binop { lhs; _ } -> typ lhs
     | Call { callee; _ } -> Type.ret_exn @@ typ callee
     | Let_in { body; _ } -> typ body
@@ -255,7 +262,7 @@ module Expr = struct
     | Int _ -> true
     | Binop { lhs; rhs; _ } -> is_promotable lhs && is_promotable rhs
     | Array { elts; _ } -> Array.for_all elts ~f:is_promotable
-    | Bool _ | Float _ | Name _ | Cast _
+    | Bool _ | Float _ | Name _ | Cast _ | Subscript _
     | Deref _ | Addr_of _ | Call _ | Let_in _  -> false
 
   let rec impurities = function
@@ -268,6 +275,7 @@ module Expr = struct
     | Addr_of { arg; _ } -> impurities arg
     | Array { elts; _ } ->
       String.Set.union_list (Array.map elts ~f:impurities |> Array.to_list)
+    | Subscript { arg; idx; _ } -> Set.union (impurities arg) (impurities idx)
     | Binop { lhs; rhs; _ } -> Set.union (impurities lhs) (impurities rhs)
     | Call { callee; args; _ } ->
       String.Set.union_list (impurities callee :: List.map ~f:impurities args)
@@ -278,6 +286,7 @@ module Expr = struct
   let rec is_lvalue = function
     | Name { pure = false; _ }
     | Deref { pure = false; _ } -> true
+    | Subscript { arg; _ } -> Fn.non is_pure arg
     | Cast { arg; _ } -> is_lvalue arg
     | Name _ | Deref _ -> false
     | Int _ | Bool _ | Float _
@@ -334,6 +343,11 @@ module Expr = struct
       Array { loc; typ; elts }
     | _ -> assert false
 
+  and subscript ~loc arg idx =
+    typecheck_kind ~kind:Type.Kind.array arg;
+    let idx = coerce idx ~typ:Type.int32 in
+    Subscript { loc; arg; idx }
+
   and binop ~loc ~op:Bop.Add ~lhs ~rhs =
     typecheck_kind ~kind:Type.Kind.numeric lhs;
     typecheck_kind ~kind:Type.Kind.numeric rhs;
@@ -389,6 +403,11 @@ module Expr = struct
       let elts = Array.map elts ~f:(fun elt -> build elt env) in
       array ~loc elts
 
+    let subscript ~loc arg idx = fun env ->
+      let arg = build arg env in
+      let idx = build idx env in
+      subscript ~loc arg idx
+
     let binop ~loc ~op ~lhs ~rhs = fun env ->
       binop ~loc ~op ~lhs:(lhs env) ~rhs:(rhs env)
 
@@ -434,6 +453,7 @@ module Expr = struct
       | Float { loc; value } -> float ~loc ~value
       | Name { loc; ident } -> name ~loc ~ident
       | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:of_ast)
+      | Subscript { loc; arg; idx } -> subscript ~loc (of_ast arg) (of_ast idx)
       | Cast { loc; arg; typ } -> cast ~loc (of_ast arg) ~typ:(Type.Builder.of_ast typ)
       | Deref { loc; arg } -> deref ~loc ~arg:(of_ast arg)
       | Addr_of { loc; arg } -> addr_of ~loc ~arg:(of_ast arg)

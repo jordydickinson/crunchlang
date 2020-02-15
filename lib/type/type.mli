@@ -32,6 +32,7 @@ val ret_exn : t -> t
 val params : t -> t list option
 val params_or_error : t -> t list Or_error.t
 val params_exn : t -> t list
+val elt_exn : t -> t
 val deref_exn : t -> t
 val is_signed_exn : t -> bool
 

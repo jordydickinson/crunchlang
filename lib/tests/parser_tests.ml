@@ -145,6 +145,20 @@ let%expect_test _ =
   print_parse_expr "&x";
   [%expect {| (Addr_of (loc (:1:0 :1:2)) (arg (Name (loc (:1:1 :1:2)) (ident x)))) |}]
 
+let%expect_test _ =
+  print_parse_expr "xs[i]";
+  [%expect {|
+    (Subscript (loc (:1:0 :1:5)) (arg (Name (loc (:1:0 :1:2)) (ident xs)))
+     (idx (Name (loc (:1:3 :1:4)) (ident i)))) |}]
+
+let%expect_test _ =
+  print_parse_expr "1 + xs[i]";
+  [%expect {|
+    (Binop (loc (:1:0 :1:9)) (op Add) (lhs (Int (loc (:1:0 :1:1)) (value 1)))
+     (rhs
+      (Subscript (loc (:1:4 :1:9)) (arg (Name (loc (:1:4 :1:6)) (ident xs)))
+       (idx (Name (loc (:1:7 :1:8)) (ident i)))))) |}]
+
 (*** Statements ***)
 
 let%expect_test _ =

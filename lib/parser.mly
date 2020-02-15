@@ -163,6 +163,7 @@ call:
   | e = atom { e }
   | callee = atom; "("; args = separated_list(",", expr); ")"
     { Expr.call ~loc:$loc ~callee ~args }
+  | arg = atom "[" idx = expr "]" { Expr.subscript ~loc:$loc ~arg ~idx }
   ;
 
 atom:

@@ -62,16 +62,17 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Deref { arg; _ } ->
       let ptr = codegen_lvalue arg ~builder in
       build_load ptr (value_name ptr ^ ".deref") builder
+    | Subscript { arg; idx; _ } ->
+      let arg = codegen_lvalue arg ~builder in
+      let zero = const_int (codegen_type Type.int32) 0 in
+      let idx = codegen_rvalue idx ~builder in
+      build_gep arg [|zero; idx|] (value_name arg ^ ".i") builder
     | _ -> assert false
-  in
-
-  let codegen_rvalue_name ident ~builder =
+  and codegen_rvalue_name ident ~builder =
     match Hashtbl.find_exn names ident with
     | Value v -> v
     | Pointer p -> build_load p ident builder
-  in
-
-  let rec codegen_rvalue (expr: Expr.t) ~builder =
+  and codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
     let codegen_bop ~op:Bop.Add ~lhs ~rhs =
       let typ = Expr.typ lhs in
@@ -109,6 +110,9 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Array { elts; typ = Array { elt; _ }; _ } ->
       const_array (codegen_type elt) (Array.map elts ~f:codegen_rvalue)
     | Array _ -> assert false
+    | Subscript _ ->
+      let elt_pointer = codegen_lvalue expr ~builder in
+      build_load elt_pointer (value_name elt_pointer ^ ".0") builder
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let name = if Type.equal Type.void @@ Type.ret_exn @@ Expr.typ callee
@@ -117,8 +121,11 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let args = Array.of_list_map args ~f:codegen_rvalue in
       build_call callee args name builder
     | Let_in { ident; binding; body; _ } ->
+      let binding_type = codegen_type @@ Expr.typ binding in
+      let pointer = build_alloca binding_type ident builder in
       let binding = codegen_rvalue binding in
-      Hashtbl.set names ~key:ident ~data:(Value binding);
+      ignore (build_store binding pointer builder : llvalue);
+      Hashtbl.set names ~key:ident ~data:(Pointer binding);
       codegen_rvalue body
   in
 
@@ -126,9 +133,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     match stmt with
     | Expr expr ->
       ignore (codegen_rvalue expr ~builder : llvalue)
-    | Let { ident; binding; _ } ->
-      let binding = codegen_rvalue binding ~builder in
-      Hashtbl.set names ~key:ident ~data:(Value binding)
+    | Let { ident; binding; typ; _ }
     | Var { ident; binding; typ; _ } ->
       let pointer = build_alloca (codegen_type typ) ident builder in
       let binding = codegen_rvalue binding ~builder in

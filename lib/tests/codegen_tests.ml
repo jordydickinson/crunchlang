@@ -118,7 +118,11 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      ret i64 1
+      %x = alloca i32
+      store i32 1, i32* %x
+      %x1 = load i32, i32* %x
+      %x1.coerced = sext i32 %x1 to i64
+      ret i64 %x1.coerced
     }
 
     define void @init.ctors() {
@@ -144,7 +148,12 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      ret i64 3
+      %x = alloca i32
+      store i32 1, i32* %x
+      %x1 = load i32, i32* %x
+      %x1.coerced = sext i32 %x1 to i64
+      %addtmp = add i64 %x1.coerced, 2
+      ret i64 %addtmp
     }
 
     define void @init.ctors() {
@@ -171,7 +180,16 @@ let%expect_test _ =
       br label %body
 
     body:                                             ; preds = %entry
-      ret i64 3
+      %x = alloca i32
+      store i32 1, i32* %x
+      %y = alloca i32
+      store i32 2, i32* %y
+      %x1 = load i32, i32* %x
+      %x1.coerced = sext i32 %x1 to i64
+      %y2 = load i32, i32* %y
+      %y2.coerced = sext i32 %y2 to i64
+      %addtmp = add i64 %x1.coerced, %y2.coerced
+      ret i64 %addtmp
     }
 
     define void @init.ctors() {
@@ -835,6 +853,69 @@ let%expect_test _ =
       %calltmp = call i32 @puts(i8* %msg.0)
       store i32 %calltmp, i32* %_
       ret void
+    }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main!(): int32 {
+      let xs = {1, 2, 3};
+      return xs[1];
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define i32 @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %xs = alloca [3 x i32]
+      store [3 x i32] [i32 1, i32 2, i32 3], [3 x i32]* %xs
+      %xs.i = getelementptr [3 x i32], [3 x i32]* %xs, i32 0, i32 1
+      %xs.i.0 = load i32, i32* %xs.i
+      ret i32 %xs.i.0
+    }
+
+    define void @init.ctors() {
+    entry:
+      ret void
+    } |}]
+
+let%expect_test _ =
+  print_ir {|
+    fun main!(): int32 {
+      var xs = {1, 2, 3};
+      xs[1] := 4;
+      return xs[2];
+    }
+  |};
+  [%expect {|
+    ; ModuleID = 'test'
+    source_filename = "test"
+
+    @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+    define i32 @main() {
+    entry:
+      br label %body
+
+    body:                                             ; preds = %entry
+      %xs = alloca [3 x i32]
+      store [3 x i32] [i32 1, i32 2, i32 3], [3 x i32]* %xs
+      %xs.i = getelementptr [3 x i32], [3 x i32]* %xs, i32 0, i32 1
+      store i32 4, i32* %xs.i
+      %xs.i1 = getelementptr [3 x i32], [3 x i32]* %xs, i32 0, i32 2
+      %xs.i1.0 = load i32, i32* %xs.i1
+      ret i32 %xs.i1.0
     }
 
     define void @init.ctors() {

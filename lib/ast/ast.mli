@@ -35,6 +35,11 @@ module Expr : sig
         loc: Srcloc.t;
         elts: t array;
       }
+    | Subscript of {
+        loc: Srcloc.t;
+        arg: t;
+        idx: t;
+      }
     | Cast of {
         loc: Srcloc.t;
         typ: Type_expr.t;

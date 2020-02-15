@@ -129,3 +129,39 @@ let%expect_test _ =
              (Name (loc (:1:56 :1:57)) (ident x)
               (typ (Int (bitwidth 32) (signed true))) (pure true)))))))))
       (pure false))) |}]
+
+let%expect_test _ =
+  print_parse_semantic {|
+    fun foo(): int32 {
+      let xs = {1, 2, 3};
+      return xs[1];
+    }
+  |};
+  [%expect {|
+    ((Fun (loc (:1:5 :1:75)) (ident foo) (params ())
+      (typ (Fun (params ()) (ret (Int (bitwidth 32) (signed true)))))
+      (body
+       (Block
+        ((Let (loc (:1:30 :1:49)) (ident xs)
+          (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3)))
+          (binding
+           (Array (loc (:1:39 :1:48))
+            (elts
+             ((Int (loc (:1:40 :1:41)) (value 1)
+               (typ (Int (bitwidth 32) (signed true))))
+              (Int (loc (:1:43 :1:44)) (value 2)
+               (typ (Int (bitwidth 32) (signed true))))
+              (Int (loc (:1:46 :1:47)) (value 3)
+               (typ (Int (bitwidth 32) (signed true))))))
+            (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3))))))
+         (Return (loc (:1:56 :1:69))
+          (arg
+           (Subscript (loc (:1:63 :1:68))
+            (arg
+             (Name (loc (:1:63 :1:65)) (ident xs)
+              (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3)))
+              (pure true)))
+            (idx
+             (Int (loc (:1:66 :1:67)) (value 1)
+              (typ (Int (bitwidth 32) (signed true)))))))))))
+      (pure true))) |}]
