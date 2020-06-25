@@ -1,0 +1,25 @@
+; ModuleID = 'hello'
+source_filename = "hello"
+
+@llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+declare i32 @puts(i8*)
+
+define void @main() {
+entry:
+  br label %body
+
+body:                                             ; preds = %entry
+  %msg = alloca [13 x i8]
+  store [13 x i8] c"Hello world\0A\00", [13 x i8]* %msg
+  %_ = alloca i32
+  %msg.0 = getelementptr [13 x i8], [13 x i8]* %msg, i32 0, i32 0
+  %calltmp = call i32 @puts(i8* %msg.0)
+  store i32 %calltmp, i32* %_
+  ret void
+}
+
+define void @init.ctors() {
+entry:
+  ret void
+}

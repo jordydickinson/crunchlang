@@ -1,0 +1,15 @@
+(rule
+ (target subscripting.ll)
+ (action (run ../crunch.exe print-ir subscripting.crunch))
+ (deps subscripting.crunch))
+
+(rule
+ (target hello.ll)
+ (action (run ../crunch.exe print-ir hello.crunch))
+ (deps hello.crunch))
+
+(rule
+ (alias runtest)
+ (action (progn
+          (diff subscripting.ll.expected subscripting.ll)
+          (diff hello.ll.expected hello.ll))))

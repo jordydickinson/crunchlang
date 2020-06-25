@@ -1,0 +1,13 @@
+extern("C")
+fun puts!(str: uint8*): int32 = "puts";
+
+fun main!() {
+    var msg: uint8[] = {
+        // "Hello "
+        72, 101, 108, 108, 111, 32,
+        // "world\n\0"
+        119, 111, 114, 108, 100, 10, 0
+    };
+
+    var _ = puts!(msg as uint8*);
+}
