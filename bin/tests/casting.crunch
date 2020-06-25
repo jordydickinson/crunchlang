@@ -1,0 +1,4 @@
+fun main!() {
+    var xs = {1, 2, 3};
+    var xs_ptr: uint8* = xs as uint8*;
+}

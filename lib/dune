@@ -8,7 +8,7 @@
  (preprocess (pps ppx_jane))
  (private_modules
   LLVM
-  codegen_tests parser_tests))
+  parser_tests semantic_tests))
 
 (ocamllex
  (modules lexer))

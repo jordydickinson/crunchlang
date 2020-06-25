@@ -1,5 +1,5 @@
-; ModuleID = 'hello'
-source_filename = "hello"
+; ModuleID = 'hello.crunch'
+source_filename = "hello.crunch"
 
 @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 

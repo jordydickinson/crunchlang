@@ -1,0 +1,15 @@
+; ModuleID = 'expr_fun.crunch'
+source_filename = "expr_fun.crunch"
+
+@llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
+
+define i64 @"add$pure"(i64 %x, i64 %y) {
+entry:
+  %addtmp = add i64 %x, %y
+  ret i64 %addtmp
+}
+
+define void @init.ctors() {
+entry:
+  ret void
+}

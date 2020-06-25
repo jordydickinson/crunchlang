@@ -33,7 +33,7 @@ let print_ir =
       and outfile = flag "-output" (optional Filename.arg_type) ~doc:"path output file" in
       fun () ->
         let open Crunch in
-        let module_name = Filename.basename infile |> Filename.chop_extension in
+        let module_name = Filename.basename infile in
         let outfile = Option.value outfile ~default:(Filename.chop_extension infile ^ ".ll") in
         let ast = Driver.parse_file infile in
         let ctx = Codegen.create_context () in
