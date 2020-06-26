@@ -1,24 +1,24 @@
 exception Unbound_identifier of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     ident: string;
   }
 [@@deriving sexp]
 
 exception Unbound_type of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     ident: string;
   }
 [@@deriving sexp]
 
 exception Type_error of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     expected: [ `Type of Type.t | `Kind of Type.Kind.t ];
     got: Type.t;
   }
 [@@deriving sexp]
 
 exception Arity_mismatch of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     expected: int;
     got: int;
   }
@@ -30,18 +30,18 @@ exception Purity_error of {
 [@@deriving sexp]
 
 exception Not_assignable of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
   }
 [@@deriving sexp]
 
 exception Invalid_abi of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     ident: string;
   }
 [@@deriving sexp]
 
 exception Coercion_error of {
-    loc: Srcloc.t;
+    loc: Srcloc.t option [@sexp.option];
     dst_type: Type.t;
     src_type: Type.t;
   }
@@ -165,21 +165,21 @@ module Expr = struct
 
   type t =
     | Int of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         value: int64;
         typ: Type.t;
       }
     | Bool of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         value: bool;
       }
     | Float of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         value: float;
         typ: Type.t;
       }
     | Name of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         pure: bool;
@@ -190,46 +190,46 @@ module Expr = struct
         arg: t;
       }
     | Deref of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         arg: t;
         typ: Type.t;
         pure: bool;
       }
     | Addr_of of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         arg: t;
         typ: Type.t;
       }
     | Array of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         elts: t array;
         typ: Type.t;
       }
     | Subscript of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         arg: t;
         idx: t;
       }
     | Binop of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         op: Bop.t;
         lhs: t;
         rhs: t;
       }
     | Call of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         callee: t;
         args: t list;
       }
     | Let_in of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         binding: t;
         body: t;
       }
   [@@deriving sexp_of, variants]
 
-  let rec loc = function
+  let loc = function
     | Int { loc; _ }
     | Bool { loc; _ }
     | Float { loc; _ }
@@ -241,8 +241,9 @@ module Expr = struct
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ }
-    | Cast { loc = Some loc; _ } -> loc
-    | Cast { arg; _ } -> loc arg
+    | Cast { loc; _ } -> loc
+
+  let loc_exn expr = Option.value_exn (loc expr)
 
   let rec typ = function
     | Bool _ -> Type.bool
@@ -377,8 +378,8 @@ module Expr = struct
       | Some { typ; pure } -> name ~loc ~ident ~typ ~pure
       | None -> raise @@ Unbound_identifier { loc; ident }
 
-    let cast ~loc ~typ arg = fun env ->
-      cast ~loc ~typ:(Type.Builder.build typ env) (build arg env)
+    let cast ?loc ~typ arg = fun env ->
+      cast ?loc ~typ:(Type.Builder.build typ env) (build arg env)
 
     let deref ~loc ~arg =
       typecheck_kind ~kind:Type.Kind.pointer arg;
@@ -436,7 +437,7 @@ module Expr = struct
           else binding
         | Some typ -> coerce ~typ binding in
       if not @@ is_pure binding
-      then raise @@ Purity_error { loc = loc binding };
+      then raise @@ Purity_error { loc = loc_exn binding };
       (let_in) ~loc:loc' ~ident ~binding ~body
 
     let let_in ?binding_type ~loc ~ident ~binding ~body = fun env ->
@@ -454,7 +455,7 @@ module Expr = struct
       | Name { loc; ident } -> name ~loc ~ident
       | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:of_ast)
       | Subscript { loc; arg; idx } -> subscript ~loc (of_ast arg) (of_ast idx)
-      | Cast { loc; arg; typ } -> cast ~loc (of_ast arg) ~typ:(Type.Builder.of_ast typ)
+      | Cast { loc; arg; typ } -> cast ?loc (of_ast arg) ~typ:(Type.Builder.of_ast typ)
       | Deref { loc; arg } -> deref ~loc ~arg:(of_ast arg)
       | Addr_of { loc; arg } -> addr_of ~loc ~arg:(of_ast arg)
       | Binop { loc; op; lhs; rhs } ->
@@ -478,30 +479,30 @@ module Stmt = struct
     | Expr of Expr.t
     | Block of t list
     | Assign of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         dst: Expr.t;
         src: Expr.t;
       }
     | Let of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | Var of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | If of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         cond: Expr.t;
         iftrue: t;
         iffalse: t option [@sexp.option];
       }
     | Return of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option];
       }
   [@@deriving sexp_of, variants]
@@ -566,7 +567,7 @@ module Stmt = struct
 
     let let_ ~loc ~typ ~ident ~binding =
       if Fn.non Expr.is_pure binding
-      then raise @@ Purity_error { loc = Expr.loc binding };
+      then raise @@ Purity_error { loc = Expr.loc_exn binding };
       (let_) ~loc ~ident ~typ ~binding:(Expr.coerce ~typ binding)
 
     let let_ ~loc ~typ ~ident ~binding = fun env ->
@@ -645,18 +646,18 @@ end
 module Decl = struct
   type t =
     | Type of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         binding: Type.t;
       }
     | Let of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | Fun of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
@@ -664,14 +665,14 @@ module Decl = struct
         pure: bool;
       }
     | Fun_expr of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
         body: Expr.t;
       }
     | Fun_extern of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
@@ -700,7 +701,7 @@ module Decl = struct
 
     let let_ ~loc ~ident ~typ ~binding =
       if Fn.non Expr.is_pure binding
-      then raise @@ Purity_error { loc = Expr.loc binding };
+      then raise @@ Purity_error { loc = Expr.loc_exn binding };
       (let_) ~loc ~ident ~typ ~binding:(Expr.coerce ~typ binding)
 
     let let_ ~loc ~ident ~typ ~binding = fun env ->
@@ -711,7 +712,7 @@ module Decl = struct
 
     let fun_ ~loc ~ident ~params ~typ ~body ~pure =
       if pure && Fn.non Stmt.is_pure body
-      then raise @@ Purity_error { loc };
+      then raise @@ Purity_error { loc = Option.value_exn loc };
       fun_ ~loc ~ident ~params ~typ ~body ~pure
 
     let fun_ ~loc ~ident ~params ~typ ~body ~pure = fun env ->
@@ -726,7 +727,7 @@ module Decl = struct
     let fun_expr ~loc ~ident ~params ~typ ~body =
       Expr.typecheck ~typ:(Type.ret_exn typ) body;
       if not @@ Expr.is_pure body
-      then raise @@ Purity_error { loc = Expr.loc body };
+      then raise @@ Purity_error { loc = Expr.loc_exn body };
       fun_expr ~loc ~ident ~params ~typ ~body
 
     let fun_expr ~loc ~ident ~params ~typ ~body = fun env ->

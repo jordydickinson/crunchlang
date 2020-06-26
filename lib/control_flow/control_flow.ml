@@ -5,19 +5,19 @@ module Stmt = struct
   type t =
     | Expr of Expr.t
     | Let of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | Var of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | Assign of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         dst: Expr.t;
         src: Expr.t;
       }
@@ -44,11 +44,11 @@ module Flow = struct
   type t =
     | Exit
     | Return of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option]
       }
     | If of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         cond: Expr.t;
         iftrue: t;
         iffalse: t;
@@ -91,28 +91,30 @@ module Flow = struct
       let continue = of_semantic_stmts stmts' ~continue in
       of_semantic_stmts stmts ~continue
 
-  let loc_exn = function
-    | Exit -> invalid_arg "loc_exn Exit"
+  let loc = function
+    | Exit -> None
     | Return { loc; _ }
     | If { loc; _ } -> loc
     | Seq (stmt, _) -> Stmt.loc stmt
+
+  let loc_exn flow = Option.value_exn (loc flow)
 end
 
 module Decl = struct
   type t =
     | Type of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         binding: Type.t;
       }
     | Let of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         typ: Type.t;
         binding: Expr.t;
       }
     | Fun of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
@@ -120,14 +122,14 @@ module Decl = struct
         pure: bool;
       }
     | Fun_expr of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
         body: Expr.t;
       }
     | Fun_extern of {
-        loc: Srcloc.t;
+        loc: Srcloc.t option [@sexp.option];
         ident: string;
         params: string list;
         typ: Type.t;
