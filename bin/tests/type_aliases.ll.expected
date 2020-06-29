@@ -5,8 +5,8 @@ source_filename = "type_aliases.crunch"
 
 define i64 @"add$pure"(i64 %x, i64 %y) {
 entry:
-  %addtmp = add i64 %x, %y
-  ret i64 %addtmp
+  %iaddtmp = add i64 %x, %y
+  ret i64 %iaddtmp
 }
 
 define void @init.ctors() {

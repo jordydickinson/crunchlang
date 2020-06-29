@@ -349,11 +349,11 @@ module Expr = struct
     let idx = coerce idx ~typ:Type.int32 in
     Subscript { loc; arg; idx }
 
-  and binop ~loc ~op:Bop.Add ~lhs ~rhs =
+  and binop ~loc ~op ~lhs ~rhs =
     typecheck_kind ~kind:Type.Kind.numeric lhs;
     typecheck_kind ~kind:Type.Kind.numeric rhs;
     let typ = Type.union (typ lhs) (typ rhs) |> Option.value_exn in
-    Binop { loc; op = Bop.Add; lhs = coerce ~typ lhs; rhs = coerce ~typ rhs }
+    Binop { loc; op; lhs = coerce ~typ lhs; rhs = coerce ~typ rhs }
 
   module Builder : sig
     type expr = t
@@ -501,6 +501,11 @@ module Stmt = struct
         iftrue: t;
         iffalse: t option [@sexp.option];
       }
+    | While of {
+        loc: Srcloc.t option [@sexp.option];
+        cond: Expr.t;
+        body: t;
+      }
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option];
@@ -527,6 +532,7 @@ module Stmt = struct
         impurities iftrue;
         Option.value_map iffalse ~f:impurities ~default:String.Set.empty
       ]
+    | While { cond; body; _ } -> String.Set.union (Expr.impurities cond) (impurities body)
     | Return { arg; _ } -> Option.value_map arg ~f:Expr.impurities ~default:String.Set.empty
 
   let is_pure stmt = Set.is_empty @@ impurities stmt
@@ -604,6 +610,11 @@ module Stmt = struct
         | None -> None in
       if_ ~loc ~cond ~iftrue ~iffalse, env
 
+    let while_ ~loc ~cond ~body = fun env ->
+      let cond = Expr.Builder.build cond env in
+      let body, _ = body env in
+      while_ ~loc ~cond ~body, env
+
     let return ~loc ~arg = fun env ->
       let ret_type = Env.typeof env "return" |> Option.value_exn in
       let arg = match arg with
@@ -637,6 +648,10 @@ module Stmt = struct
         let iftrue = of_ast iftrue in
         let iffalse = Option.map iffalse ~f:of_ast in
         if_ ~loc ~cond ~iftrue ~iffalse
+      | While { loc; cond; body } ->
+        let cond = Expr.Builder.of_ast cond in
+        let body = of_ast body in
+        while_ ~loc ~cond ~body
       | Return { loc; arg } ->
         let arg = Option.map arg ~f:Expr.Builder.of_ast in
         return ~loc ~arg

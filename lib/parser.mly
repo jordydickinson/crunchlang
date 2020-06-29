@@ -22,6 +22,7 @@
 %token KW_RETURN "return"
 %token KW_EXTERN "extern"
 %token KW_AS "as"
+%token KW_WHILE "while"
 
 (* Booleans *)
 %token KW_TRUE "true"
@@ -31,6 +32,7 @@
 %token PLUS "+"
 %token STAR "*"
 %token AMP "&"
+%token LT "<"
 
 (* Misc. symbols *)
 %token LPAREN "("
@@ -115,6 +117,7 @@ stmt:
   | "var" ident = IDENT typ = type_annot? "=" binding = init_expr ";"
     { Stmt.var ~loc:$loc ~ident ~typ ~binding }
   | if_ = if_stmt { if_ }
+  | "while" cond = expr body = block { Stmt.while_ ~loc:$loc ~cond ~body }
   | "return"; arg = expr?; ";" { Stmt.return ~loc:$loc ~arg }
   ;
 
@@ -133,7 +136,7 @@ else_clause:
   ;
 
 expr:
-  | e = cast { e }
+  | e = compare { e }
   | "let" ident = IDENT typ = type_annot? "=" binding = init_expr "in" body = expr
     { Expr.let_in ~loc:$loc ~ident ~typ ~binding ~body }
   ;
@@ -142,6 +145,10 @@ init_expr:
   | e = expr { e }
   | "{" elts = separated_array(",", init_expr) "}" { Expr.array ~loc:$loc ~elts }
   ;
+
+compare:
+  | e = cast { e }
+  | lhs = cast "<" rhs = cast { Expr.lt ~loc:$loc ~lhs ~rhs }
 
 cast:
   | e = infix { e }

@@ -78,14 +78,18 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Pointer p -> build_load p ident builder
   and codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
-    let codegen_bop ~op:Bop.Add ~lhs ~rhs =
+    let codegen_bop ~(op: Bop.t) ~lhs ~rhs =
       let typ = Expr.typ lhs in
       let lhs = codegen_rvalue lhs in
       let rhs = codegen_rvalue rhs in
-      match typ with
-      | Int _ -> build_add lhs rhs "addtmp" builder
-      | Float64 -> build_fadd lhs rhs "addtmp" builder
-      | _ -> assert false
+      match op, typ with
+      | Add, Int _ -> build_add lhs rhs "iaddtmp" builder
+      | Add, Float64 -> build_fadd lhs rhs "faddtmp" builder
+      | Add, _ -> assert false
+      | Lt, Int { signed = true; _ } -> build_icmp Icmp.Slt lhs rhs "islttmp" builder
+      | Lt, Int { signed = false; _ } -> build_icmp Icmp.Ult lhs rhs "iulttmp" builder
+      | Lt, Float64 -> build_fcmp Fcmp.Ult lhs rhs "fulttmp" builder
+      | Lt, _ -> assert false
     in
     match expr with
     | Int { value; _ } ->
@@ -149,42 +153,48 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_store src dst builder : llvalue)
   in
 
-  let exit = ref None in
-  let cache = Srcloc.Table.create () in
+  let loop_entry = ref None in
+  let loop_exit = ref None in
+  let cache = Int.Table.create () in
 
   let rec codegen_flow (flow: Control_flow.Flow.t) ~func ~builder =
     match flow with
-    | Exit
     | Return { loc = _; arg = None } ->
       ignore (build_ret_void builder : llvalue)
     | Return { loc = _; arg = Some arg } ->
       let arg = codegen_rvalue arg ~builder in
       ignore (build_ret arg builder : llvalue)
-    | If { loc = _; cond; iftrue; iffalse } ->
+    | If { cond; iftrue; iffalse; _ } ->
       let cond = codegen_rvalue cond ~builder in
       let iftrue = codegen_block iftrue ~func ~name:"iftrue" in
       let iffalse = codegen_block iffalse ~func ~name:"iffalse" in
       ignore (build_cond_br cond iftrue iffalse builder : llvalue)
-    | Seq (stmt, flow) ->
+    | Break { loc = _ } ->
+      ignore (build_br (Option.value_exn !loop_exit) builder : llvalue)
+    | Continue { loc = _ } ->
+      ignore (build_br (Option.value_exn !loop_entry) builder : llvalue)
+    | Loop { entry; exit; _ } ->
+      let entry_block = append_block (module_context module_) "loop.entry" func in
+      let exit_block = append_block (module_context module_) "loop.exit" func in
+      let entry_builder = builder_at_end (module_context module_) entry_block in
+      let exit_builder = builder_at_end (module_context module_) exit_block in
+      loop_entry := Some entry_block;
+      loop_exit := Some exit_block;
+      codegen_flow entry ~func ~builder:entry_builder;
+      codegen_flow exit ~func ~builder:exit_builder;
+      ignore (build_br entry_block builder : llvalue)
+    | Seq { hd = stmt; tl = flow; _ } ->
       codegen_stmt stmt ~builder;
       codegen_flow flow ~func ~builder
   and codegen_block (flow: Control_flow.Flow.t) ~func ~name =
-    match flow, !exit with
-    | Exit, None ->
-      let block = append_block (module_context module_) "exit" func in
+    let build () =
+      let block = append_block (module_context module_) name func in
       let builder = builder_at_end (module_context module_) block in
       codegen_flow flow ~func ~builder;
-      exit := Some block;
       block
-    | Exit, Some exit -> exit
-    | _ ->
-      Hashtbl.find_or_add cache (Control_flow.Flow.loc_exn flow)
-        ~default:begin fun () ->
-          let block = append_block (module_context module_) name func in
-          let builder = builder_at_end (module_context module_) block in
-          codegen_flow flow ~func ~builder;
-          block
-        end
+    in match Control_flow.Flow.id flow with
+    | None -> build ()
+    | Some id -> Hashtbl.find_or_add cache id ~default:build
   in
 
   let rename_func ident ~pure =
@@ -212,10 +222,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     set_linkage Linkage.Appending global_ctors
   in
 
-  let rec codegen_decl (decl: Control_flow.Decl.t) =
-    protect ~f:(fun () -> codegen_decl' decl)
-      ~finally:(fun () -> exit := None)
-  and codegen_decl' decl =
+  let codegen_decl (decl: Control_flow.Decl.t) =
     match decl with
     | Type _ -> ()
     | Fun_extern { ident; typ; extern_abi; extern_ident; _ } ->

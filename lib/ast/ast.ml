@@ -17,7 +17,8 @@ module Expr = struct
   module Bop = struct
     type t =
       | Add
-    [@@deriving sexp_of, variants]
+      | Lt
+    [@@deriving sexp_of]
   end
 
   type t =
@@ -93,7 +94,8 @@ module Expr = struct
   let call ?loc ~callee ~args = Call { loc; callee; args }
   let let_in ?loc ~ident ~typ ~binding ~body = Let_in { loc; ident; typ; binding; body }
 
-  let add = binop ~op:Bop.add
+  let add = binop ~op:Bop.Add
+  let lt = binop ~op:Bop.Lt
 
   let loc = function
     | Int { loc; _ }
@@ -137,6 +139,11 @@ module Stmt = struct
         iftrue: t;
         iffalse: t option [@sexp.option];
       }
+    | While of {
+        loc: Srcloc.t option [@sexp.option];
+        cond: Expr.t;
+        body: t;
+      }
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option];
@@ -150,6 +157,7 @@ module Stmt = struct
   let let_ ?loc ~ident ~typ ~binding = Let { loc; ident; typ; binding }
   let var ?loc ~ident ~typ ~binding = Var { loc; ident; typ; binding }
   let if_ ?loc ~cond ~iftrue ~iffalse = If { loc; cond; iftrue; iffalse }
+  let while_ ?loc ~cond ~body = While { loc; cond; body }
   let return ?loc ~arg = Return { loc; arg }
 
   let to_block stmt =

@@ -1,13 +1,17 @@
 extern("C")
-fun puts!(str: uint8*): int32 = "puts";
+fun putchar!(c: int32) : int32 = "putchar";
 
 fun main!() {
     var msg: uint8[] = {
         // "Hello "
         72, 101, 108, 108, 111, 32,
-        // "world\n\0"
-        119, 111, 114, 108, 100, 10, 0
+        // "world\n"
+        119, 111, 114, 108, 100, 10
     };
 
-    var _ = puts!(msg as uint8*);
+    var i = 0;
+    while i < 12 {
+        var _ = putchar!(msg[i]);
+        i := i + 1;
+    }
 }

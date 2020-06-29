@@ -43,7 +43,8 @@ module Expr : sig
         variant of the [Ast.Expr.t] type. *)
     type t =
       | Add (** [Add] represents the [+] operator. *)
-    [@@deriving sexp_of, variants]
+      | Lt (** [Lt] represents the [<] operator. *)
+    [@@deriving sexp_of]
   end
 
   (** [Expr.t] is an expression node. *)
@@ -155,8 +156,11 @@ module Expr : sig
       [let ident : typ = binding in body]. *)
   val let_in : ?loc:Srcloc.t -> ident:string -> typ:Type_expr.t option -> binding:t -> body:t -> t
 
-  (** [add ?loc ~lhs ~rhs] is the same as [binop ?loc ~op:Bop.add ~lhs ~rhs]. *)
+  (** [add ?loc ~lhs ~rhs] is the same as [binop ?loc ~op:Bop.Add ~lhs ~rhs]. *)
   val add : ?loc:Srcloc.t -> lhs:t -> rhs:t -> t
+
+  (** [lt ?loc ~lhs ~rhs] is the same as [binop ?loc ~op:Bop.Lt ~lhs ~rhs]. *)
+  val lt : ?loc:Srcloc.t -> lhs:t -> rhs:t -> t
 
   (** [loc expr] is the source location of [expr], if any. *)
   val loc : t -> Srcloc.t option
@@ -191,6 +195,11 @@ module Stmt : sig
         iftrue: t;
         iffalse: t option [@sexp.option];
       }
+    | While of {
+        loc: Srcloc.t option [@sexp.option];
+        cond: Expr.t;
+        body: t;
+      }
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option];
@@ -221,6 +230,10 @@ module Stmt : sig
       [loc], representing the control flow structure
       [if cond { iftrue } else { iffalse }]. *)
   val if_ : ?loc:Srcloc.t -> cond:Expr.t -> iftrue:t -> iffalse:t option -> t
+
+  (** [while_ ?loc ~cond ~body] is a statement node with source location [loc]
+      representing the while loop [while cond { body }]. *)
+  val while_ : ?loc:Srcloc.t -> cond:Expr.t -> body:t -> t
 
   (** [return ?loc ~arg] is a statement with source location [loc], representing
       the return statement [return arg;]. *)

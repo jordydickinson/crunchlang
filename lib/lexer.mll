@@ -32,6 +32,7 @@ rule read =
   | "return" { KW_RETURN }
   | "extern" { KW_EXTERN }
   | "as" { KW_AS }
+  | "while" { KW_WHILE }
 
   | "true" { KW_TRUE }
   | "false" { KW_FALSE }
@@ -52,6 +53,7 @@ rule read =
   | "+" { PLUS }
   | "*" { STAR }
   | "&" { AMP }
+  | "<" { LT }
 
   | float as f { FLOAT (Float.of_string f) }
   | int as i { INT (Int64.of_string i) }

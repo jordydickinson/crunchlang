@@ -3,20 +3,42 @@ source_filename = "hello.crunch"
 
 @llvm.global_ctors = appending global [1 x void ()*] [void ()* @init.ctors]
 
-declare i32 @puts(i8*)
+declare i32 @putchar(i32)
 
 define void @main() {
 entry:
   br label %body
 
 body:                                             ; preds = %entry
-  %msg = alloca [13 x i8]
-  store [13 x i8] c"Hello world\0A\00", [13 x i8]* %msg
-  %_ = alloca i32
-  %msg.0 = getelementptr [13 x i8], [13 x i8]* %msg, i32 0, i32 0
-  %calltmp = call i32 @puts(i8* %msg.0)
-  store i32 %calltmp, i32* %_
+  %msg = alloca [12 x i8]
+  store [12 x i8] c"Hello world\0A", [12 x i8]* %msg
+  %i = alloca i32
+  store i32 0, i32* %i
+  br label %loop.entry
+
+loop.entry:                                       ; preds = %body, %iftrue
+  %i1 = load i32, i32* %i
+  %islttmp = icmp slt i32 %i1, 12
+  br i1 %islttmp, label %iftrue, label %iffalse
+
+loop.exit:                                        ; preds = %iffalse
   ret void
+
+iftrue:                                           ; preds = %loop.entry
+  %_ = alloca i32
+  %i2 = load i32, i32* %i
+  %msg.i = getelementptr [12 x i8], [12 x i8]* %msg, i32 0, i32 %i2
+  %msg.i.0 = load i8, i8* %msg.i
+  %msg.i.0.coerced = zext i8 %msg.i.0 to i32
+  %calltmp = call i32 @putchar(i32 %msg.i.0.coerced)
+  store i32 %calltmp, i32* %_
+  %i3 = load i32, i32* %i
+  %iaddtmp = add i32 %i3, 1
+  store i32 %iaddtmp, i32* %i
+  br label %loop.entry
+
+iffalse:                                          ; preds = %loop.entry
+  br label %loop.exit
 }
 
 define void @init.ctors() {

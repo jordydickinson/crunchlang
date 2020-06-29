@@ -29,9 +29,7 @@ module Stmt = struct
     | Assign { loc; dst; src } -> assign ~loc ~dst ~src
     | Let { loc; ident; typ; binding } -> (let_) ~loc ~ident ~typ ~binding
     | Var { loc; ident; typ; binding } -> var ~loc ~ident ~typ ~binding
-    | Block _
-    | If _
-    | Return _ -> invalid_arg "Cannot be converted"
+    | Block _ | If _ | While _ | Return _ -> invalid_arg "Cannot be converted"
 
   let loc = function
     | Expr expr -> Expr.loc expr
@@ -42,62 +40,80 @@ end
 
 module Flow = struct
   type t =
-    | Exit
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option]
       }
     | If of {
+        id: int;
         loc: Srcloc.t option [@sexp.option];
         cond: Expr.t;
         iftrue: t;
         iffalse: t;
       }
-    | Seq of Stmt.t * t
-  [@@deriving sexp_of, variants]
+    | Break of { loc: Srcloc.t option [@sexp.option] }
+    | Continue of { loc: Srcloc.t option [@sexp.option] }
+    | Loop of {
+        id: int;
+        loc: Srcloc.t option [@sexp.option];
+        entry: t;
+        exit: t;
+      }
+    | Seq of { id: int; hd: Stmt.t; tl: t }
+  [@@deriving sexp_of]
 
-  let rec of_semantic_block (stmt: Semantic.Stmt.t) ~continue =
+  let genid =
+    let ctr = ref 0 in
+    fun () -> incr ctr; !ctr
+
+  let return ?loc arg = Return { loc; arg }
+  let if_ ?loc cond ~iftrue ~iffalse =
+    If { id = genid (); loc; cond; iftrue; iffalse }
+  let break ?loc () = Break { loc }
+  let continue ?loc () = Continue { loc }
+  let loop ?loc ~entry ~exit = Loop { id = genid (); loc; entry; exit }
+  let seq hd tl = Seq { id = genid (); hd; tl }
+
+  let rec of_semantic_block (stmt: Semantic.Stmt.t) ~next =
     match stmt with
-    | Block stmts -> of_semantic_stmts stmts ~continue
-    | _ -> of_semantic_block ~continue @@ Semantic.Stmt.to_block stmt
+    | Block stmts -> of_semantic_stmts stmts ~next
+    | _ -> of_semantic_block ~next @@ Semantic.Stmt.to_block stmt
 
-  and of_semantic_stmts (stmts: Semantic.Stmt.t list) ~continue =
+  and of_semantic_stmts (stmts: Semantic.Stmt.t list) ~next =
     match stmts with
-    | [] -> continue
+    | [] -> next
     | (Expr _ as stmt) :: stmts
     | (Let _ as stmt) :: stmts
     | (Var _ as stmt) :: stmts
     | (Assign _ as stmt) :: stmts ->
       let stmt = Stmt.of_semantic_stmt_exn stmt in
-      Seq (stmt, of_semantic_stmts stmts ~continue)
+      seq stmt @@ of_semantic_stmts stmts ~next
     | If { loc; cond; iftrue; iffalse } :: stmts ->
-      let to_stmts (stmt: Semantic.Stmt.t) =
-        match stmt with
-        | Block stmts -> stmts
-        | _ -> [stmt] in
-      let continue = of_semantic_stmts stmts ~continue in
-      If {
-        loc; cond;
-        iftrue = of_semantic_stmts (to_stmts iftrue) ~continue;
-        iffalse =
-          Option.value_map ~default:continue
-            iffalse ~f:(Fn.compose (of_semantic_stmts ~continue) to_stmts)
-      }
+      let continue = of_semantic_stmts stmts ~next in
+      if_ ?loc cond
+        ~iftrue:(of_semantic_block iftrue ~next)
+        ~iffalse:(Option.value_map iffalse ~default:continue ~f:(of_semantic_block ~next))
+    | While { loc; cond; body } :: stmts ->
+      (* while cond body
+         ->
+         loop { if cond { body; continue; } else { break; } }
+      *)
+      loop ?loc
+        ~entry:(if_ cond
+                  ~iftrue:(of_semantic_block body ~next:(continue ()))
+                  ~iffalse:(break ()))
+        ~exit:(of_semantic_stmts stmts ~next)
     | Return { loc; arg } :: stmts ->
       if Fn.non List.is_empty stmts
       then failwith "Statements cannot appear after return"
-      else Return { loc; arg }
+      else return ?loc arg
     | Block stmts  :: stmts' ->
-      let continue = of_semantic_stmts stmts' ~continue in
-      of_semantic_stmts stmts ~continue
+      let next = of_semantic_stmts stmts' ~next in
+      of_semantic_stmts stmts ~next
 
-  let loc = function
-    | Exit -> None
-    | Return { loc; _ }
-    | If { loc; _ } -> loc
-    | Seq (stmt, _) -> Stmt.loc stmt
-
-  let loc_exn flow = Option.value_exn (loc flow)
+  let id = function
+    | Return _ | Break _ | Continue _ -> None
+    | If { id; _ } | Loop { id; _ } | Seq { id; _ } -> Some id
 end
 
 module Decl = struct
@@ -137,7 +153,7 @@ module Decl = struct
         extern_abi: string;
         extern_ident: string;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 
   let of_semantic_decl (decl: Semantic.Decl.t) =
     match decl with
@@ -148,7 +164,7 @@ module Decl = struct
     | Fun { loc; ident; params; typ; body; pure } ->
       Fun {
         loc; ident; params; typ; pure;
-        body = Flow.of_semantic_block body ~continue:Exit;
+        body = Flow.of_semantic_block body ~next:(Flow.return None);
       }
     | Fun_expr { loc; ident; params; typ; body } ->
       Fun_expr { loc; ident; params; typ; body }

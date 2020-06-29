@@ -164,6 +164,11 @@ module Stmt : sig
         iftrue: t;
         iffalse: t option [@sexp.option];
       }
+    | While of {
+        loc: Srcloc.t option [@sexp.option];
+        cond: Expr.t;
+        body: t;
+      }
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option];

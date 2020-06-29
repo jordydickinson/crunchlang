@@ -21,28 +21,36 @@ module Stmt : sig
         dst: Expr.t;
         src: Expr.t;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 
   val loc : t -> Srcloc.t option
 end
 
 module Flow : sig
   type t = private
-    | Exit
     | Return of {
         loc: Srcloc.t option [@sexp.option];
         arg: Expr.t option [@sexp.option]
       }
     | If of {
+        id: int;
         loc: Srcloc.t option [@sexp.option];
         cond: Expr.t;
         iftrue: t;
         iffalse: t;
       }
-    | Seq of Stmt.t * t
-  [@@deriving sexp_of, variants]
+    | Break of { loc: Srcloc.t option }
+    | Continue of { loc: Srcloc.t option }
+    | Loop of {
+        id: int;
+        loc: Srcloc.t option;
+        entry: t;
+        exit: t;
+      }
+    | Seq of { id: int; hd: Stmt.t; tl: t }
+  [@@deriving sexp_of]
 
-  val loc_exn : t -> Srcloc.t
+  val id : t -> int option
 end
 
 module Decl : sig
@@ -82,7 +90,7 @@ module Decl : sig
         extern_abi: string;
         extern_ident: string;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 end
 
 type t = Decl.t list
