@@ -48,26 +48,11 @@
 %token EQ "="
 
 %start<Ast.t> prog
-%start<Ast.Decl.t> decl_eof
-%start<Ast.Stmt.t> stmt_eof
-%start<Ast.Expr.t> expr_eof
 
 %%
 
 prog:
   | ds = decl*; EOF { ds }
-  ;
-
-decl_eof:
-  | d = decl; EOF { d }
-  ;
-
-stmt_eof:
-  | s = stmt; EOF { s }
-  ;
-
-expr_eof:
-  | e = expr; EOF { e }
   ;
 
 decl:
@@ -180,7 +165,7 @@ atom:
   | "false" { Expr.bool ~loc:$loc ~value:false }
   | ident = IDENT { Expr.name ~loc:$loc ~ident }
   | ident = BANG_IDENT { Expr.name ~loc:$loc ~ident }
-  | "("; e = expr; ")" { e }
+  | e = delimited("(", expr, ")") { e }
   ;
 
 type_annot:

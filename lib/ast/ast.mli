@@ -119,6 +119,10 @@ module Expr : sig
       representing the floating point [value]. *)
   val float : ?loc:Srcloc.t -> value:float -> t
 
+  (** [string ?loc ~value] is an expression node with source location [loc]
+      representing the string [value]. *)
+  val string : ?loc:Srcloc.t -> value:string -> t
+
   (** [name ?loc ~ident] is an expression node with source location [loc]
       representing an identifier named [ident]. *)
   val name : ?loc:Srcloc.t -> ident:string -> t

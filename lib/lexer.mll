@@ -5,7 +5,8 @@
   [@@deriving sexp]
 }
 
-let white = [' ' '\t' '\n' '\r']
+let newline = "\r\n" | '\n' | '\r'
+let space = [' ' '\t']
 let digit = ['0'-'9']
 let int = '-'? digit+
 let fractional_part = '.' digit*
@@ -17,7 +18,8 @@ let bang_ident = ident '!'
 
 rule read =
   parse
-  | white { read lexbuf }
+  | newline { Lexing.new_line lexbuf; read lexbuf }
+  | space { read lexbuf }
   | "//" [^ '\n' '\r']* { read lexbuf }
   | "(*" { block_comment 1 lexbuf }
   | '\"' { read_string (Buffer.create 16) lexbuf }
@@ -79,7 +81,8 @@ and read_string buf =
   | '\\' 'n'  { Buffer.add_char buf '\n'; read_string buf lexbuf }
   | '\\' 'r'  { Buffer.add_char buf '\r'; read_string buf lexbuf }
   | '\\' 't'  { Buffer.add_char buf '\t'; read_string buf lexbuf }
-  | [^ '"' '\\']+
+  | '\\' space* newline space* { Lexing.new_line lexbuf; read_string buf lexbuf }
+  | [^ '"' '\\' '\r' '\n']+
     { Buffer.add_string buf (Lexing.lexeme lexbuf);
       read_string buf lexbuf }
   | _ { raise @@ Syntax_error ("Illegal string character: " ^ Lexing.lexeme lexbuf) }

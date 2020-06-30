@@ -12,7 +12,7 @@ let%expect_test _ =
     type t = int64;
   |};
   [%expect {|
-    ((Type (loc (:1:5 :1:20)) (ident t)
+    ((Type (loc (:2:4 :2:19)) (ident t)
       (binding (Int (bitwidth 64) (signed true))))) |}]
 
 let%expect_test _ =
@@ -22,21 +22,21 @@ let%expect_test _ =
     fun add(x: t, y: t): t = x + y;
   |};
   [%expect {|
-    ((Type (loc (:1:5 :1:20)) (ident t)
+    ((Type (loc (:2:4 :2:19)) (ident t)
       (binding (Int (bitwidth 64) (signed true))))
-     (Fun_expr (loc (:1:26 :1:57)) (ident add) (params (x y))
+     (Fun_expr (loc (:4:4 :4:35)) (ident add) (params (x y))
       (typ
        (Fun
         (params
          ((Int (bitwidth 64) (signed true)) (Int (bitwidth 64) (signed true))))
         (ret (Int (bitwidth 64) (signed true)))))
       (body
-       (Binop (loc (:1:51 :1:56)) (op Add)
+       (Binop (loc (:4:29 :4:34)) (op Add)
         (lhs
-         (Name (loc (:1:51 :1:52)) (ident x)
+         (Name (loc (:4:29 :4:30)) (ident x)
           (typ (Int (bitwidth 64) (signed true))) (pure true)))
         (rhs
-         (Name (loc (:1:55 :1:56)) (ident y)
+         (Name (loc (:4:33 :4:34)) (ident y)
           (typ (Int (bitwidth 64) (signed true))) (pure true))))))) |}]
 
 let%expect_test _ =
@@ -44,19 +44,19 @@ let%expect_test _ =
     fun add(x: int32, y: int32): int32 = x + y;
   |};
   [%expect {|
-    ((Fun_expr (loc (:1:5 :1:48)) (ident add) (params (x y))
+    ((Fun_expr (loc (:2:4 :2:47)) (ident add) (params (x y))
       (typ
        (Fun
         (params
          ((Int (bitwidth 32) (signed true)) (Int (bitwidth 32) (signed true))))
         (ret (Int (bitwidth 32) (signed true)))))
       (body
-       (Binop (loc (:1:42 :1:47)) (op Add)
+       (Binop (loc (:2:41 :2:46)) (op Add)
         (lhs
-         (Name (loc (:1:42 :1:43)) (ident x)
+         (Name (loc (:2:41 :2:42)) (ident x)
           (typ (Int (bitwidth 32) (signed true))) (pure true)))
         (rhs
-         (Name (loc (:1:46 :1:47)) (ident y)
+         (Name (loc (:2:45 :2:46)) (ident y)
           (typ (Int (bitwidth 32) (signed true))) (pure true))))))) |}]
 
 let%expect_test _ =
@@ -68,27 +68,27 @@ let%expect_test _ =
     }
   |};
   [%expect {|
-    ((Fun (loc (:1:5 :1:78)) (ident main!) (params ())
+    ((Fun (loc (:2:4 :6:5)) (ident main!) (params ())
       (typ (Fun (params ()) (ret (Int (bitwidth 64) (signed true)))))
       (body
        (Block
-        ((Var (loc (:1:32 :1:42)) (ident x)
+        ((Var (loc (:3:6 :3:16)) (ident x)
           (typ (Int (bitwidth 32) (signed true)))
           (binding
-           (Int (loc (:1:40 :1:41)) (value 1)
+           (Int (loc (:3:14 :3:15)) (value 1)
             (typ (Int (bitwidth 32) (signed true))))))
-         (Assign (loc (:1:49 :1:56))
+         (Assign (loc (:4:6 :4:13))
           (dst
-           (Name (loc (:1:49 :1:50)) (ident x)
+           (Name (loc (:4:6 :4:7)) (ident x)
             (typ (Int (bitwidth 32) (signed true))) (pure false)))
           (src
-           (Int (loc (:1:54 :1:55)) (value 2)
+           (Int (loc (:4:11 :4:12)) (value 2)
             (typ (Int (bitwidth 32) (signed true))))))
-         (Return (loc (:1:63 :1:72))
+         (Return (loc (:5:6 :5:15))
           (arg
            (Cast (typ (Int (bitwidth 64) (signed true)))
             (arg
-             (Name (loc (:1:70 :1:71)) (ident x)
+             (Name (loc (:5:13 :5:14)) (ident x)
               (typ (Int (bitwidth 32) (signed true))) (pure false)))))))))
       (pure false))) |}]
 
@@ -101,7 +101,7 @@ let%expect_test _ =
     }
   |};
   [%expect {|
-    (lib/semantic/semantic.ml.Coercion_error (loc (:1:65 :1:67))
+    (lib/semantic/semantic.ml.Coercion_error (loc (:4:22 :4:24))
       (dst_type (Pointer (Int (bitwidth 64) (signed true))))
       (src_type (Pointer (Int (bitwidth 32) (signed true))))) |}]
 
@@ -113,20 +113,20 @@ let%expect_test _ =
     }
   |};
   [%expect {|
-    ((Fun (loc (:1:5 :1:64)) (ident main!) (params ())
+    ((Fun (loc (:2:4 :5:5)) (ident main!) (params ())
       (typ (Fun (params ()) (ret (Int (bitwidth 64) (signed true)))))
       (body
        (Block
-        ((Let (loc (:1:32 :1:42)) (ident x)
+        ((Let (loc (:3:6 :3:16)) (ident x)
           (typ (Int (bitwidth 32) (signed true)))
           (binding
-           (Int (loc (:1:40 :1:41)) (value 1)
+           (Int (loc (:3:14 :3:15)) (value 1)
             (typ (Int (bitwidth 32) (signed true))))))
-         (Return (loc (:1:49 :1:58))
+         (Return (loc (:4:6 :4:15))
           (arg
            (Cast (typ (Int (bitwidth 64) (signed true)))
             (arg
-             (Name (loc (:1:56 :1:57)) (ident x)
+             (Name (loc (:4:13 :4:14)) (ident x)
               (typ (Int (bitwidth 32) (signed true))) (pure true)))))))))
       (pure false))) |}]
 
@@ -138,30 +138,30 @@ let%expect_test _ =
     }
   |};
   [%expect {|
-    ((Fun (loc (:1:5 :1:75)) (ident foo) (params ())
+    ((Fun (loc (:2:4 :5:5)) (ident foo) (params ())
       (typ (Fun (params ()) (ret (Int (bitwidth 32) (signed true)))))
       (body
        (Block
-        ((Let (loc (:1:30 :1:49)) (ident xs)
+        ((Let (loc (:3:6 :3:25)) (ident xs)
           (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3)))
           (binding
-           (Array (loc (:1:39 :1:48))
+           (Array (loc (:3:15 :3:24))
             (elts
-             ((Int (loc (:1:40 :1:41)) (value 1)
+             ((Int (loc (:3:16 :3:17)) (value 1)
                (typ (Int (bitwidth 32) (signed true))))
-              (Int (loc (:1:43 :1:44)) (value 2)
+              (Int (loc (:3:19 :3:20)) (value 2)
                (typ (Int (bitwidth 32) (signed true))))
-              (Int (loc (:1:46 :1:47)) (value 3)
+              (Int (loc (:3:22 :3:23)) (value 3)
                (typ (Int (bitwidth 32) (signed true))))))
             (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3))))))
-         (Return (loc (:1:56 :1:69))
+         (Return (loc (:4:6 :4:19))
           (arg
-           (Subscript (loc (:1:63 :1:68))
+           (Subscript (loc (:4:13 :4:18))
             (arg
-             (Name (loc (:1:63 :1:65)) (ident xs)
+             (Name (loc (:4:13 :4:15)) (ident xs)
               (typ (Array (elt (Int (bitwidth 32) (signed true))) (size 3)))
               (pure true)))
             (idx
-             (Int (loc (:1:66 :1:67)) (value 1)
+             (Int (loc (:4:16 :4:17)) (value 1)
               (typ (Int (bitwidth 32) (signed true)))))))))))
       (pure true))) |}]

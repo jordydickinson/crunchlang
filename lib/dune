@@ -6,9 +6,7 @@
  (inline_tests)
  (flags :standard -open Core_kernel)
  (preprocess (pps ppx_jane))
- (private_modules
-  LLVM
-  parser_tests semantic_tests))
+ (private_modules LLVM semantic_tests))
 
 (ocamllex
  (modules lexer))

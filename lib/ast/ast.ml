@@ -84,6 +84,7 @@ module Expr = struct
   let int ?loc ~value = Int { loc; value }
   let bool ?loc ~value = Bool { loc; value }
   let float ?loc ~value = Float { loc; value }
+  let string ?loc:_ ~value:_ = assert false
   let name ?loc ~ident = Name { loc; ident }
   let array ?loc ~elts = Array { loc; elts }
   let subscript ?loc ~arg ~idx = Subscript { loc; arg; idx }
