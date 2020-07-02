@@ -30,7 +30,7 @@
 
 (* Operators *)
 %token PLUS "+"
-%token STAR "*"
+// %token STAR "*"
 %token AMP "&"
 %token LT "<"
 
@@ -141,14 +141,8 @@ cast:
   ;
 
 infix:
-  | e = prefix { e }
-  | lhs = infix; "+"; rhs = prefix { Expr.add ~loc:$loc ~lhs ~rhs }
-  ;
-
-prefix:
   | e = call { e }
-  | "*"; arg = prefix { Expr.deref ~loc:$loc ~arg }
-  | "&"; arg = prefix { Expr.addr_of ~loc:$loc ~arg }
+  | lhs = infix; "+"; rhs = call { Expr.add ~loc:$loc ~lhs ~rhs }
   ;
 
 call:
@@ -174,7 +168,7 @@ type_annot:
 
 type_expr:
   | ident = IDENT { Type_expr.name ~loc:$loc ~ident }
-  | arg = type_expr "*" { Type_expr.pointer ~loc:$loc ~arg }
+  | arg = type_expr "&" { Type_expr.reference ~loc:$loc ~arg }
   | arg = type_expr "[" "]" { Type_expr.array ~loc:$loc ~arg }
   | "{"; fields = separated_list(";", field); "}"
   | "{"; fields = field_semi+; "}"

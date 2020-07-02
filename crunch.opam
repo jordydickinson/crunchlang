@@ -6,7 +6,7 @@ license: "MIT"
 homepage: "https://github.com/jordydickinson/crunch"
 bug-reports: "https://github.com/jordydickinson/crunch/issues"
 depends: [
-  "dune" {>= "2.0"}
+  "dune" {>= "2.6"}
   "core" {= "0.13"}
   "menhir" {>= "20200123"}
   "llvm" {>= "10.0" & < "11.0"}

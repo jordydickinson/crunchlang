@@ -1,14 +1,14 @@
 module Type_expr = struct
   type t =
     | Name of { loc: Srcloc.t option [@sexp.option]; ident: string }
-    | Pointer of { loc: Srcloc.t option [@sexp.option]; arg: t }
+    | Reference of { loc: Srcloc.t option [@sexp.option]; arg: t }
     | Array of { loc: Srcloc.t option [@sexp.option]; arg: t }
     | Struct of { loc: Srcloc.t option [@sexp.option]; fields: (string * t) list }
   [@@deriving sexp_of, variants]
 
   (* This is not a place of honor... *)
   let name ?loc ~ident = Name { loc; ident }
-  let pointer ?loc ~arg = Pointer { loc; arg }
+  let reference ?loc ~arg = Reference { loc; arg }
   let array ?loc ~arg = Array { loc; arg }
   let struct_ ?loc ~fields = Struct { loc; fields }
 end
@@ -52,14 +52,6 @@ module Expr = struct
         typ: Type_expr.t;
         arg: t;
       }
-    | Deref of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-      }
-    | Addr_of of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-      }
     | Binop of {
         loc: Srcloc.t option [@sexp.option];
         op: Bop.t;
@@ -89,8 +81,6 @@ module Expr = struct
   let array ?loc ~elts = Array { loc; elts }
   let subscript ?loc ~arg ~idx = Subscript { loc; arg; idx }
   let cast ?loc ~typ ~arg = Cast { loc; typ; arg }
-  let deref ?loc ~arg = Deref { loc; arg }
-  let addr_of ?loc ~arg = Addr_of { loc; arg }
   let binop ?loc ~op ~lhs ~rhs = Binop { loc; op; lhs; rhs }
   let call ?loc ~callee ~args = Call { loc; callee; args }
   let let_in ?loc ~ident ~typ ~binding ~body = Let_in { loc; ident; typ; binding; body }
@@ -106,8 +96,6 @@ module Expr = struct
     | Array { loc; _ }
     | Subscript { loc; _ }
     | Cast { loc; _ }
-    | Deref { loc; _ }
-    | Addr_of { loc; _ }
     | Binop { loc; _ }
     | Call { loc; _ }
     | Let_in { loc; _ } -> loc

@@ -48,7 +48,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float64 -> double_type (module_context module_)
     | Array { elt; size } -> array_type (codegen_type elt) size
     | Struct _ -> assert false
-    | Pointer typ -> pointer_type @@ codegen_type typ
+    | Reference typ -> pointer_type @@ codegen_type typ
     | Fun { params; ret } ->
       function_type (codegen_type ret)
       @@ Array.of_list_map params ~f:codegen_type
@@ -63,7 +63,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
   let rec codegen_lvalue (expr: Expr.t) ~builder =
     match expr with
     | Name { ident; _ } -> codegen_lvalue_name ident
-    | Deref { arg; _ } ->
+    | Deref arg ->
       let ptr = codegen_lvalue arg ~builder in
       build_load ptr (value_name ptr ^ ".deref") builder
     | Subscript { arg; idx; _ } ->
@@ -107,14 +107,9 @@ let codegen_cf module_ (cf: Control_flow.t) =
       let typ = codegen_type typ in
       (if signed then build_sext_or_bitcast else build_zext_or_bitcast)
         arg typ (value_name arg ^ ".coerced") builder
-    | Cast { typ = Pointer _ as typ; arg; _ } when Type.is_kind (Expr.typ arg) Type.Kind.array ->
-      let arg = codegen_lvalue arg ~builder in
-      let zero = const_int (codegen_type Type.int32) 0 in
-      let eltptr = build_gep arg [|zero; zero|] (value_name arg ^ ".0") builder in
-      build_bitcast eltptr (codegen_type typ) (value_name eltptr ^ ".cast") builder
     | Cast _ -> assert false
     | Deref _ -> codegen_lvalue expr ~builder
-    | Addr_of { arg; _ } -> codegen_lvalue arg ~builder
+    | Addr_of arg -> codegen_lvalue arg ~builder
     | Array { elts; typ = Array { elt; _ }; _ } ->
       const_array (codegen_type elt) (Array.map elts ~f:codegen_rvalue)
     | Array _ -> assert false

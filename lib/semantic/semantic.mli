@@ -87,17 +87,8 @@ module Expr : sig
         typ: Type.t;
         arg: t;
       }
-    | Deref of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-        typ: Type.t;
-        pure: bool;
-      }
-    | Addr_of of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-        typ: Type.t;
-      }
+    | Deref of t
+    | Addr_of of t
     | Array of {
         loc: Srcloc.t option [@sexp.option];
         elts: t array;

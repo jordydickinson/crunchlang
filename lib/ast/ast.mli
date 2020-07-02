@@ -9,7 +9,7 @@ module Type_expr : sig
   (** [Type_expr.t] is a type expression. *)
   type t = private
     | Name of { loc: Srcloc.t option [@sexp.option]; ident: string }
-    | Pointer of { loc: Srcloc.t option [@sexp.option]; arg: t }
+    | Reference of { loc: Srcloc.t option [@sexp.option]; arg: t }
     | Array of { loc: Srcloc.t option [@sexp.option]; arg: t }
     | Struct of { loc: Srcloc.t option [@sexp.option]; fields: (string * t) list }
   [@@deriving sexp_of]
@@ -18,9 +18,9 @@ module Type_expr : sig
       and name [ident]. *)
   val name : ?loc:Srcloc.t -> ident:string -> t
 
-  (** [pointer ?loc ~arg] is a pointer type expr node with source location [loc]
-      and representing the type [arg*]. *)
-  val pointer : ?loc:Srcloc.t -> arg:t -> t
+  (** [reference ?loc ~arg] is a reference type expr node with source location
+      [loc] and representing the type [arg&]. *)
+  val reference : ?loc:Srcloc.t -> arg:t -> t
 
   (** [array ?loc ~arg] is an array type expr node with source location [loc]
       and representing the type [arg[]]. *)
@@ -79,14 +79,6 @@ module Expr : sig
         typ: Type_expr.t;
         arg: t;
       }
-    | Deref of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-      }
-    | Addr_of of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-      }
     | Binop of {
         loc: Srcloc.t option [@sexp.option];
         op: Bop.t;
@@ -138,14 +130,6 @@ module Expr : sig
   (** [cast ?loc ~typ ~arg] is an expression node with source location [loc]
       representing the cast operation [arg as typ]. *)
   val cast : ?loc:Srcloc.t -> typ:Type_expr.t -> arg:t -> t
-
-  (** [deref ?loc ~arg] is an expression node with source location [loc]
-      representing the pointer dereference operation [*arg]. *)
-  val deref : ?loc:Srcloc.t -> arg:t -> t
-
-  (** [addr_of ?loc ~arg] is an expression node with source location [loc]
-      representing the address-of operation [&arg]. *)
-  val addr_of : ?loc:Srcloc.t -> arg:t -> t
 
   (** [binop ?loc ~op ~lhs ~rhs] is an expression node with source location
       [loc] representing the binary operation [lhs op rhs]. *)

@@ -4,7 +4,7 @@ type t =
   | Int of { bitwidth: int; signed: bool }
   | Float32
   | Float64
-  | Pointer of t
+  | Reference of t
   | Array of { elt: t; size: int }
   | Struct of (string * t) list
   | Fun of {
@@ -32,12 +32,20 @@ let rec union typ typ' =
   | Float64, _
   | Int _, _
   | Array _, _
-  | Pointer _, _
+  | Reference _, _
   | Struct _, _
   | Fun _, _  -> None
 
 let is_fun = function
   | Fun _ -> true
+  | _ -> false
+
+let is_reference = function
+  | Reference _ -> true
+  | _ -> false
+
+let is_numeric = function
+  | Int _ | Float32 | Float64 -> true
   | _ -> false
 
 let ret_exn = function
@@ -63,7 +71,7 @@ let elt_exn typ =
 
 let deref_exn typ =
   match typ with
-  | Pointer typ -> typ
+  | Reference typ -> typ
   | _ -> invalid_arg "Not a pointer type"
 
 let is_signed_exn = function
@@ -78,7 +86,7 @@ module Kind = struct
     | Void
     | Bool
     | Numeric
-    | Pointer
+    | Reference
     | Array
     | Struct
     | Fun
@@ -89,7 +97,7 @@ module Kind = struct
     | Void -> Void
     | Bool -> Bool
     | Int _ | Float32 | Float64 -> Numeric
-    | Pointer _ -> Pointer
+    | Reference _ -> Reference
     | Array _ -> Array
     | Struct _ -> Struct
     | Fun _ -> Fun

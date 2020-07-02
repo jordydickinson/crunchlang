@@ -93,19 +93,6 @@ let%expect_test _ =
       (pure false))) |}]
 
 let%expect_test _ =
-  print_semantic_failure {|
-    fun main!() {
-      var x: int32 = 1;
-      var y: int64* = &x;
-      *y := 2;
-    }
-  |};
-  [%expect {|
-    (lib/semantic/semantic.ml.Coercion_error (loc (:4:22 :4:24))
-      (dst_type (Pointer (Int (bitwidth 64) (signed true))))
-      (src_type (Pointer (Int (bitwidth 32) (signed true))))) |}]
-
-let%expect_test _ =
   print_parse_semantic {|
     fun main!(): int64 {
       let x = 1;
@@ -165,3 +152,37 @@ let%expect_test _ =
              (Int (loc (:4:16 :4:17)) (value 1)
               (typ (Int (bitwidth 32) (signed true)))))))))))
       (pure true))) |}]
+
+let%expect_test _ =
+  print_parse_semantic {|
+    fun main!() {
+      var x = 1;
+      var y: int32& = x;
+      y := 2;
+    }
+  |};
+  [%expect {|
+    ((Fun (loc (:2:4 :6:5)) (ident main!) (params ())
+      (typ (Fun (params ()) (ret Void)))
+      (body
+       (Block
+        ((Var (loc (:3:6 :3:16)) (ident x)
+          (typ (Int (bitwidth 32) (signed true)))
+          (binding
+           (Int (loc (:3:14 :3:15)) (value 1)
+            (typ (Int (bitwidth 32) (signed true))))))
+         (Var (loc (:4:6 :4:24)) (ident y)
+          (typ (Reference (Int (bitwidth 32) (signed true))))
+          (binding
+           (Addr_of
+            (Name (loc (:4:22 :4:23)) (ident x)
+             (typ (Int (bitwidth 32) (signed true))) (pure false)))))
+         (Assign (loc (:5:6 :5:13))
+          (dst
+           (Deref
+            (Name (loc (:5:6 :5:7)) (ident y)
+             (typ (Reference (Int (bitwidth 32) (signed true)))) (pure false))))
+          (src
+           (Int (loc (:5:11 :5:12)) (value 2)
+            (typ (Int (bitwidth 32) (signed true)))))))))
+      (pure false))) |}]

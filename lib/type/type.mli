@@ -4,7 +4,7 @@ type t = private
   | Int of { bitwidth: int; signed: bool }
   | Float32
   | Float64
-  | Pointer of t
+  | Reference of t
   | Array of { elt: t; size: int }
   | Struct of (string * t) list
   | Fun of {
@@ -20,7 +20,7 @@ val int32 : t
 val int64 : t
 val float32 : t
 val float64 : t
-val pointer : t -> t
+val reference : t -> t
 val array : elt:t -> size:int -> t
 val struct_ : (string * t) list -> t
 val fun_ : params:t list -> ret:t -> t
@@ -28,6 +28,9 @@ val fun_ : params:t list -> ret:t -> t
 val union : t -> t -> t option
 
 val is_fun : t -> bool
+val is_reference : t -> bool
+val is_numeric : t -> bool
+
 val ret_exn : t -> t
 val params : t -> t list option
 val params_or_error : t -> t list Or_error.t
@@ -43,7 +46,7 @@ module Kind : sig
     | Void
     | Bool
     | Numeric
-    | Pointer
+    | Reference
     | Array
     | Struct
     | Fun
@@ -52,7 +55,7 @@ module Kind : sig
   val void : t
   val bool : t
   val numeric : t
-  val pointer : t
+  val reference : t
   val array : t
   val struct_ : t
   val fun_ : t

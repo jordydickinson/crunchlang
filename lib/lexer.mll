@@ -53,7 +53,7 @@ rule read =
   | "=" { EQ }
 
   | "+" { PLUS }
-  | "*" { STAR }
+  (* | "*" { STAR } *)
   | "&" { AMP }
   | "<" { LT }
 

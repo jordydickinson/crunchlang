@@ -47,6 +47,13 @@ exception Coercion_error of {
   }
 [@@deriving sexp]
 
+let type_error ~(expected: Type.t) ~(got: Type.t) : 'a =
+  ok_exn begin
+    Or_error.error_string "type error"
+    |> fun e -> Or_error.tag_arg e "expected" expected [%sexp_of: Type.t]
+    |> fun e -> Or_error.tag_arg e "got" got [%sexp_of: Type.t]
+  end
+
 module Env : sig
   type binding = {
     typ: Type.t;
@@ -109,7 +116,7 @@ module Type = struct
 
   let rec promote typ =
     match typ with
-    | Void | Bool | Float32 | Float64 | Pointer _ | Struct _ | Fun _ -> typ
+    | Void | Bool | Float32 | Float64 | Reference _ | Struct _ | Fun _ -> typ
     | Int { bitwidth; signed = _ } -> if bitwidth < 32 then int32 else typ
     | Array { elt; size } -> array ~elt:(promote elt) ~size
 
@@ -134,8 +141,8 @@ module Type = struct
       let fields = List.map fields ~f:(fun (ident, typ) -> ident, typ env) in
       struct_ @@ fields
 
-    let pointer arg = fun env ->
-      pointer @@ arg env
+    let reference arg = fun env ->
+      reference @@ arg env
 
     let array ~elt ~size = fun env ->
       array ~elt:(build elt env) ~size
@@ -153,7 +160,7 @@ module Type = struct
       in
       match type_expr with
       | Name { loc; ident }  -> of_name ~loc ~ident
-      | Pointer { loc = _; arg } -> pointer @@ of_ast arg
+      | Reference { loc = _; arg } -> reference @@ of_ast arg
       | Array { loc = _; arg } -> array ~elt:(of_ast arg) ~size:0
       | Struct { loc = _; fields } -> struct_ @@ List.map fields
           ~f:(fun (ident, typ) -> ident, of_ast typ)
@@ -189,17 +196,8 @@ module Expr = struct
         typ: Type.t;
         arg: t;
       }
-    | Deref of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-        typ: Type.t;
-        pure: bool;
-      }
-    | Addr_of of {
-        loc: Srcloc.t option [@sexp.option];
-        arg: t;
-        typ: Type.t;
-      }
+    | Deref of t
+    | Addr_of of t
     | Array of {
         loc: Srcloc.t option [@sexp.option];
         elts: t array;
@@ -227,15 +225,15 @@ module Expr = struct
         binding: t;
         body: t;
       }
-  [@@deriving sexp_of, variants]
+  [@@deriving sexp_of]
 
-  let loc = function
+  let rec loc = function
+    | Deref arg
+    | Addr_of arg -> loc arg
     | Int { loc; _ }
     | Bool { loc; _ }
     | Float { loc; _ }
     | Name { loc; _ }
-    | Deref { loc; _ }
-    | Addr_of { loc; _ }
     | Array { loc; _ }
     | Subscript { loc; _ }
     | Binop { loc; _ }
@@ -247,12 +245,12 @@ module Expr = struct
 
   let rec typ = function
     | Bool _ -> Type.bool
+    | Deref arg -> Type.deref_exn @@ typ arg
+    | Addr_of arg -> Type.reference @@ typ arg
     | Int { typ; _ }
     | Float { typ; _ }
     | Name { typ; _ }
     | Cast { typ; _ }
-    | Deref { typ; _ }
-    | Addr_of { typ; _ }
     | Array { typ; _ } -> typ
     | Subscript { arg; _ } -> Type.elt_exn @@ typ arg
     | Binop { lhs; _ } -> typ lhs
@@ -268,12 +266,9 @@ module Expr = struct
 
   let rec impurities = function
     | Int _ | Bool _ | Float _
-    | Name { pure = true; _ }
-    | Deref { pure = true; _ } -> String.Set.empty
+    | Name { pure = true; _ } -> String.Set.empty
     | Name { ident; _ } -> String.Set.singleton ident
-    | Cast { arg; _ }
-    | Deref { arg; _ }
-    | Addr_of { arg; _ } -> impurities arg
+    | Cast { arg; _ } | Deref arg | Addr_of arg -> impurities arg
     | Array { elts; _ } ->
       String.Set.union_list (Array.map elts ~f:impurities |> Array.to_list)
     | Subscript { arg; idx; _ } -> Set.union (impurities arg) (impurities idx)
@@ -284,15 +279,21 @@ module Expr = struct
 
   let is_pure expr = Set.is_empty @@ impurities expr
 
+  let is_literal = function
+    | Int _ | Bool _ | Float _ | Array _ -> true
+    | _ -> false
+
   let rec is_lvalue = function
     | Name { pure = false; _ }
-    | Deref { pure = false; _ } -> true
-    | Subscript { arg; _ } -> Fn.non is_pure arg
-    | Cast { arg; _ } -> is_lvalue arg
-    | Name _ | Deref _ -> false
-    | Int _ | Bool _ | Float _
-    | Addr_of _ | Array _ | Binop _ | Call _
-    | Let_in _ -> false
+      -> true
+    | Deref arg | Addr_of arg
+    | Subscript { arg; _ }
+    | Cast { arg; _ }
+      -> is_lvalue arg
+    | Int _ | Bool _ | Float _ | Name _
+    | Array _ | Binop _ | Call _
+    | Let_in _
+      -> false
 
   let check_lvalue expr =
     if not @@ is_lvalue expr
@@ -306,7 +307,10 @@ module Expr = struct
     if not @@ Type.is_kind (typ expr) kind
     then raise @@ Type_error { loc = loc expr; expected = `Kind kind; got = typ expr }
 
-  let rec int ?typ ~loc value =
+  let bool ?loc value = Bool { loc; value }
+  let name ?loc ~typ ~pure ident = Name { loc; typ; pure; ident }
+
+  let rec int ?loc ?typ value =
     let typ = Option.value typ
         ~default:(if Int64.is_non_negative value
                   && Int64.O.(value < Int64.of_int 256)
@@ -314,26 +318,104 @@ module Expr = struct
                   else Type.int64) in
     Int { loc; typ; value }
 
-  and float ?typ ~loc value =
+  and float ?loc ?typ value =
     let typ = Option.value typ ~default:Type.float64 in
     Float { loc; typ; value }
 
-  and cast ?loc ~typ arg =
-    Cast { loc; typ; arg }
+  (** [cast ?loc ~typ arg] is [arg as typ]. In addition to conversions done by
+      [coerce ~typ arg], this can do certain additional conversions which are
+      not wise to do implicitly.
 
-  and coerce ~typ:(typ': Type.t) arg =
-    match arg, Type.union typ' @@ typ arg with
-    | _, None ->
-      raise @@ Coercion_error { loc = loc arg; src_type = typ arg; dst_type = typ' }
-    | _ when Type.equal typ' @@ typ arg -> arg
-    | Int { loc; value; typ = _ }, _ -> int ~loc ~typ:typ' value
-    | Binop { loc; op; lhs; rhs }, _ ->
-      binop ~loc ~op ~lhs:(coerce ~typ:typ' lhs) ~rhs:(coerce ~typ:typ' rhs)
-    | Array { loc; typ = _; elts }, Some typ' ->
-      array ~loc ~typ:typ' elts
-    | _ -> cast ~typ:typ' arg
+      Types for which explicit conversions can be performed include all those
+      which can be converted implicitly, and additionally "unsafe" numeric
+      conversions (e.g., downcasts).
 
-  and array ?typ:(typ': Type.t option) ~loc elts =
+      Some types cannot be converted by [cast]. For example, [t[]] cannot be
+      converted to [t&] or vice-versa. *)
+  and cast ?(loc: Srcloc.t option) ~typ:(typ': Type.t) (arg: t) : t =
+    let cast_numeric ?loc ~typ:(typ': Type.t) (arg: t) =
+      match typ', arg with
+      (* These can be done inline. *)
+      | Int _, Int { loc; value; typ = _ } -> int ?loc ~typ:typ' value
+      | Int _, Float { loc; value; typ = _ } -> int ?loc ~typ:typ' (Int64.of_float value)
+      | (Float32 | Float64), Int { loc; value; typ = _ } -> float ?loc ~typ:typ' (Float.of_int64 value)
+      | (Float32 | Float64), Float { loc; value; typ = _ } -> float ?loc ~typ:typ' value
+      (* Everything else will have to wait. *)
+      | _ -> Cast { loc; typ = typ'; arg }
+    in match typ', typ arg with
+    | Void, _ | _, Void ->
+      (* These should never happen. *)
+      failwith "internal error: cast to or from void"
+    | Reference _, _ | _, Reference _
+    | Array _, _ ->
+      (* [coerce] handles all valid cases of these. *)
+      coerce ~typ:typ' arg
+    | Int _, _ | Float32, _ | Float64, _ -> cast_numeric ?loc ~typ:typ' arg
+    | Struct _, _ | _, Struct _
+    | Fun _, _ | _, Fun _
+    | Bool, _ ->
+      (* There are no valid conversions between these except implicit coercions
+         to/from reference types, which were already handled. *)
+      type_error ~expected:typ' ~got:(typ arg)
+
+  (** [coerce ~typ arg] is [arg] coerced to type [typ], if such a conversion can
+      be done implicitly. If the conversion cannot be done implicitly, an error
+      is returned.
+
+      Types for which implicit conversions can be performed include numeric
+      types (when the conversion is "safe", i.e., an upcast), coercions to
+      types which differ only in level of indirection (e.g., [t] to [t&]).
+
+      In addition, literal expressions have much more flexible coercion rules,
+      based on their particular values, since this is known at compile-time. *)
+  and coerce ~typ:(typ': Type.t) (arg: t) : t =
+    let coerce_literal ~typ:(typ': Type.t) arg =
+      match arg, Type.union typ' @@ typ arg with
+      | _, None -> type_error ~expected:typ' ~got:(typ arg)
+      | Int { loc; value; typ = _ }, _ -> int ?loc ~typ:typ' value
+      | Binop { loc; op; lhs; rhs }, _ ->
+        binop ~loc ~op ~lhs:(coerce ~typ:typ' lhs) ~rhs:(coerce ~typ:typ' rhs)
+      | Array { loc; elts; typ = _ }, Some (Array { elt; _ }) ->
+        array ?loc (Array.map elts ~f:(coerce ~typ:elt))
+      | _, _ -> invalid_arg "coerce_literal called with non-literal argument"
+    in let coerce_numeric ~typ:(typ': Type.t) arg =
+      match Type.union typ' @@ typ arg with
+      | None -> type_error ~expected:typ' ~got:(typ arg)
+      | Some typ' -> cast ~typ:typ' arg
+    in let coerce_reference ~typ:(typ': Type.t) arg =
+      match typ', typ arg with
+      | Reference typ', Reference _ -> addr_of @@ coerce ~typ:typ' (deref arg)
+      | Reference _, _ -> coerce ~typ:typ' (addr_of arg)
+      | _, Reference _ -> coerce ~typ:typ' (to_value arg)
+      | typ', typ when Type.equal typ' typ -> arg
+      | typ', typ -> type_error ~expected:typ' ~got:typ
+    in if Type.equal typ' (typ arg) then arg
+    else if Type.is_reference typ' then coerce_reference ~typ:typ' arg
+    else if is_literal arg then coerce_literal ~typ:typ' arg
+    else if Type.is_numeric typ' then coerce_numeric ~typ:typ' arg
+    else type_error ~expected:typ' ~got:(typ arg)
+
+  (** [to_value arg] is [arg] dereferenced as many times as necessary to obtain
+      a non-reference type. In that case that [arg] is not of a reference type,
+      this is simply the identity function. *)
+  and to_value arg =
+    if Type.is_reference @@ typ arg
+    then to_value @@ deref arg
+    else arg
+
+  (** [deref arg] is [arg] dereferenced once. [arg] must be of a reference type. *)
+  and deref arg =
+    match arg with
+    | Addr_of arg -> arg
+    | arg -> typecheck_kind ~kind:Type.Kind.reference arg; Deref arg
+
+  (** [addr_of arg] is the address of [arg]. *)
+  and addr_of arg =
+    match arg with
+    | Deref arg -> arg
+    | arg -> Addr_of arg
+
+  and array ?(loc: Srcloc.t option) ?typ:(typ': Type.t option) elts =
     let elt_type = if Array.length elts = 0 then Type.void else typ elts.(0) in
     let typ = Option.value typ'
         ~default:(Type.array ~elt:elt_type ~size:(Array.length elts)) in
@@ -345,6 +427,7 @@ module Expr = struct
     | _ -> assert false
 
   and subscript ~loc arg idx =
+    let arg = to_value arg in
     typecheck_kind ~kind:Type.Kind.array arg;
     let idx = coerce idx ~typ:Type.int32 in
     Subscript { loc; arg; idx }
@@ -354,6 +437,23 @@ module Expr = struct
     typecheck_kind ~kind:Type.Kind.numeric rhs;
     let typ = Type.union (typ lhs) (typ rhs) |> Option.value_exn in
     Binop { loc; op; lhs = coerce ~typ lhs; rhs = coerce ~typ rhs }
+
+  and call ?loc callee args =
+    let callee = to_value callee in
+    typecheck_kind ~kind:Type.Kind.fun_ callee;
+    let param_types = Type.params_exn @@ typ callee in
+    match List.map2 param_types args ~f:(fun typ -> coerce ~typ) with
+    | Ok args -> Call { loc; callee; args }
+    | Unequal_lengths ->
+      raise @@ Arity_mismatch {
+        loc;
+        expected = List.length param_types;
+        got = List.length args
+      }
+
+    let let_in ?loc (binding: string * t) body =
+      let ident, binding = binding in
+      Let_in { loc; ident; binding; body }
 
   module Builder : sig
     type expr = t
@@ -367,42 +467,23 @@ module Expr = struct
 
     let build (builder: t) (env: Env.t) : expr = builder env
 
-    let int ~loc ~value = fun _ -> int ~loc value
+    let int ?loc value = fun _ -> int ?loc value
 
-    let bool ~loc ~value = fun _ -> bool ~loc ~value
+    let bool ?loc value = fun _ -> bool ?loc value
 
-    let float ~loc ~value = fun _ -> float ~loc value
+    let float ?loc value = fun _ -> float ?loc value
 
-    let name ~loc ~ident = fun env ->
+    let name ?loc ident = fun env ->
       match Env.lookup env ident with
-      | Some { typ; pure } -> name ~loc ~ident ~typ ~pure
+      | Some { typ; pure } -> name ?loc ~typ ~pure ident
       | None -> raise @@ Unbound_identifier { loc; ident }
 
     let cast ?loc ~typ arg = fun env ->
       cast ?loc ~typ:(Type.Builder.build typ env) (build arg env)
 
-    let deref ~loc ~arg =
-      typecheck_kind ~kind:Type.Kind.pointer arg;
-      let typ = Type.deref_exn @@ typ arg in
-      let pure = is_pure arg in
-      deref ~loc ~arg ~typ ~pure
-
-    let deref ~loc ~arg = fun env ->
-      let arg = arg env in
-      deref ~loc ~arg
-
-    let addr_of ~loc ~arg =
-      check_lvalue arg;
-      let typ = Type.pointer @@ typ arg in
-      addr_of ~loc ~arg ~typ
-
-    let addr_of ~loc ~arg = fun env ->
-      let arg = arg env in
-      addr_of ~loc ~arg
-
-    let array ~loc ~elts = fun env ->
+    let array ?loc ~elts = fun env ->
       let elts = Array.map elts ~f:(fun elt -> build elt env) in
-      array ~loc elts
+      array ?loc elts
 
     let subscript ~loc arg idx = fun env ->
       let arg = build arg env in
@@ -412,22 +493,8 @@ module Expr = struct
     let binop ~loc ~op ~lhs ~rhs = fun env ->
       binop ~loc ~op ~lhs:(lhs env) ~rhs:(rhs env)
 
-    let call ~loc ~callee ~args =
-      let args =
-        match List.map2 (Type.params_exn @@ typ callee) args
-                ~f:(fun typ arg -> coerce arg ~typ)
-        with
-        | Ok args -> args
-        | Unequal_lengths ->
-          raise @@ Arity_mismatch {
-            loc;
-            expected = List.length @@ Type.params_exn @@ typ callee;
-            got = List.length args;
-          } in
-      call ~loc ~callee ~args
-
-    let call ~loc ~callee ~args = fun env ->
-      call ~loc ~callee:(callee env) ~args:(List.map args ~f:(fun arg -> arg env))
+    let call ?loc ~callee ~args = fun env ->
+      call ?loc (callee env) (List.map args ~f:(fun arg -> arg env))
 
     let let_in ?binding_type ~loc:loc' ~ident ~binding ~body =
       let binding = match binding_type with
@@ -438,7 +505,7 @@ module Expr = struct
         | Some typ -> coerce ~typ binding in
       if not @@ is_pure binding
       then raise @@ Purity_error { loc = loc_exn binding };
-      (let_in) ~loc:loc' ~ident ~binding ~body
+      (let_in) ?loc:loc' (ident, binding) body
 
     let let_in ?binding_type ~loc ~ident ~binding ~body = fun env ->
       let binding_type = Option.map binding_type ~f:(fun typ -> Type.Builder.build typ env) in
@@ -449,15 +516,13 @@ module Expr = struct
 
     let rec of_ast (expr: Ast.Expr.t) : t =
       match expr with
-      | Int { loc; value } -> int ~loc ~value
-      | Bool { loc; value } -> bool ~loc ~value
-      | Float { loc; value } -> float ~loc ~value
-      | Name { loc; ident } -> name ~loc ~ident
-      | Array { loc; elts } -> array ~loc ~elts:(Array.map elts ~f:of_ast)
+      | Int { loc; value } -> int ?loc value
+      | Bool { loc; value } -> bool ?loc value
+      | Float { loc; value } -> float ?loc value
+      | Name { loc; ident } -> name ?loc ident
+      | Array { loc; elts } -> array ?loc ~elts:(Array.map elts ~f:of_ast)
       | Subscript { loc; arg; idx } -> subscript ~loc (of_ast arg) (of_ast idx)
       | Cast { loc; arg; typ } -> cast ?loc (of_ast arg) ~typ:(Type.Builder.of_ast typ)
-      | Deref { loc; arg } -> deref ~loc ~arg:(of_ast arg)
-      | Addr_of { loc; arg } -> addr_of ~loc ~arg:(of_ast arg)
       | Binop { loc; op; lhs; rhs } ->
         let lhs = of_ast lhs in
         let rhs = of_ast rhs in
@@ -465,7 +530,7 @@ module Expr = struct
       | Call { loc; callee; args } ->
         let callee = of_ast callee in
         let args = List.map args ~f:of_ast in
-        call ~loc ~callee ~args
+        call ?loc ~callee ~args
       | Let_in { loc; ident; typ; binding; body } ->
         let binding_type = Option.map ~f:Type.Builder.of_ast typ in
         let binding = of_ast binding in
@@ -566,7 +631,9 @@ module Stmt = struct
 
     let assign ~loc ~src ~dst =
       Expr.check_lvalue dst;
-      assign ~loc ~dst ~src:(Expr.coerce ~typ:(Expr.typ dst) src)
+      let dst = Expr.to_value dst in
+      let src = Expr.coerce ~typ:(Expr.typ dst) src in
+      assign ~loc ~dst ~src
 
     let assign ~loc ~dst ~src = fun env ->
       assign ~loc ~dst:(Expr.Builder.build dst env) ~src:(Expr.Builder.build src env), env

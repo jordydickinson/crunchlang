@@ -1,47 +1,44 @@
 (rule
  (alias runtest)
- (action (diff subscripting.ll.expected subscripting.ll)))
-(rule
- (target subscripting.ll)
- (action (run ../crunch.exe print-ir subscripting.crunch))
+ (action
+  (progn
+   (run ../crunch.exe print-ir subscripting.crunch)
+   (no-infer
+    (diff subscripting.ll.expected subscripting.ll))))
  (deps subscripting.crunch))
 
 (rule
- (target hello.ll)
- (action (run ../crunch.exe print-ir hello.crunch))
+ (alias runtest)
+ (action
+  (progn
+   (run ../crunch.exe print-ir hello.crunch)
+   (no-infer
+    (diff hello.ll.expected hello.ll))))
  (deps hello.crunch))
-(rule
- (alias runtest)
- (action (diff hello.ll.expected hello.ll)))
 
 (rule
- (target casting.ll)
- (action (run ../crunch.exe print-ir casting.crunch))
- (deps casting.crunch))
-(rule
  (alias runtest)
- (action (diff casting.ll.expected casting.ll)))
-
-(rule
- (target pointers.ll)
- (action (run ../crunch.exe print-ir pointers.crunch))
+ (action
+  (progn
+   (run ../crunch.exe print-ir pointers.crunch)
+   (no-infer
+    (diff pointers.ll.expected pointers.ll))))
  (deps pointers.crunch))
-(rule
- (alias runtest)
- (action (diff pointers.ll.expected pointers.ll)))
 
 (rule
- (target type_aliases.ll)
- (action (run ../crunch.exe print-ir type_aliases.crunch))
+ (alias runtest)
+ (action
+  (progn
+   (run ../crunch.exe print-ir type_aliases.crunch)
+   (no-infer
+    (diff type_aliases.ll.expected type_aliases.ll))))
  (deps type_aliases.crunch))
-(rule
- (alias runtest)
- (action (diff type_aliases.ll.expected type_aliases.ll)))
 
 (rule
- (target expr_fun.ll)
- (action (run ../crunch.exe print-ir expr_fun.crunch))
- (deps expr_fun.crunch))
-(rule
  (alias runtest)
- (action (diff expr_fun.ll.expected expr_fun.ll)))
+ (action
+  (progn
+   (run ../crunch.exe print-ir expr_fun.crunch)
+   (no-infer
+    (diff expr_fun.ll.expected expr_fun.ll))))
+ (deps expr_fun.crunch))
