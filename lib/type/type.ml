@@ -22,8 +22,14 @@ let rec union typ typ' =
   | _ when equal typ typ' -> Some typ
   | Void, typ
   | typ, Void -> Some typ
-  | Int { bitwidth; signed }, Int { bitwidth = bitwidth'; signed = signed' } ->
-    Option.some @@ int ~bitwidth:(max bitwidth bitwidth') ~signed:(signed || signed')
+  | Int { bitwidth; signed = true }, Int { bitwidth = bitwidth'; signed = true } ->
+    Option.some @@ int ~bitwidth:(max bitwidth bitwidth') ~signed:true
+  | Int { bitwidth; signed = false }, Int { bitwidth = bitwidth'; signed = false } ->
+    Option.some @@ int ~bitwidth:(max bitwidth bitwidth') ~signed:false
+  | Int { bitwidth; signed = true }, Int { bitwidth = bitwidth'; signed = false } ->
+    Option.some @@ int ~bitwidth:(max bitwidth (bitwidth' + 1)) ~signed:true
+  | Int { bitwidth; signed = false }, Int { bitwidth = bitwidth'; signed = true } ->
+    Option.some @@ int ~bitwidth:(max (bitwidth + 1) bitwidth') ~signed:true
   | Float32, Float64 | Float64, Float32 -> Some float64
   | Array { size = size; elt }, Array { size = size'; elt = elt' } ->
     let%map.Option elt = union elt elt' in array ~size:(max size size') ~elt
