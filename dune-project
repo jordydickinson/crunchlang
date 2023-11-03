@@ -2,6 +2,7 @@
 (name crunch)
 (license "MIT")
 (authors "Jordy Dickinson <jordy.dickinson@icloud.com>")
+(maintainers "Jordy Dickinson <jordy.dickinson@icloud.com>")
 (source (github jordydickinson/crunch))
 (generate_opam_files true)
 (using menhir 2.0)
