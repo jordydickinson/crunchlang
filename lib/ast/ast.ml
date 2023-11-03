@@ -1,3 +1,5 @@
+[@@@warning "-16"]
+
 module Type_expr = struct
   type t =
     | Name of { loc: Srcloc.t option [@sexp.option]; ident: string }

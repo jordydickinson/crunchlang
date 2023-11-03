@@ -1,6 +1,6 @@
 (executable
  (public_name crunch)
- (libraries core crunch)
+ (libraries core core_unix core_unix.command_unix core_unix.filename_unix core_unix.sys_unix crunch)
  (package crunch)
  (preprocess (pps ppx_jane))
  (flags :standard -open Core))

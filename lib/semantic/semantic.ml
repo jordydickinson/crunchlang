@@ -1,3 +1,5 @@
+[@@@warning "-16"]
+
 exception Unbound_identifier of {
     loc: Srcloc.t option [@sexp.option];
     ident: string;
@@ -597,7 +599,7 @@ module Stmt = struct
         impurities iftrue;
         Option.value_map iffalse ~f:impurities ~default:String.Set.empty
       ]
-    | While { cond; body; _ } -> String.Set.union (Expr.impurities cond) (impurities body)
+    | While { cond; body; _ } -> String.Set.union_list [Expr.impurities cond; impurities body]
     | Return { arg; _ } -> Option.value_map arg ~f:Expr.impurities ~default:String.Set.empty
 
   let is_pure stmt = Set.is_empty @@ impurities stmt

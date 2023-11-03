@@ -11,6 +11,7 @@
  (name crunch)
  (synopsis "Crunch programming language")
  (depends
-  ("core" (= 0.13))
-  ("menhir" (>= 20200123))
-  ("llvm" (and (>= 10.0) (< 11.0)))))
+  ("core" (>= 0.16.0))
+  ("core_unix" (>= 0.16.0))
+  ("menhir" (>= 20230608))
+  ("llvm" (>= 16.0.6))))

@@ -2,9 +2,9 @@
 
 (library
  (public_name crunch)
- (libraries core_kernel menhirLib llvm llvm.analysis llvm.target llvm.all_backends)
+ (libraries core menhirLib llvm llvm.analysis llvm.target llvm.all_backends)
  (inline_tests)
- (flags :standard -open Core_kernel)
+ (flags :standard -open Core)
  (preprocess (pps ppx_jane))
  (private_modules LLVM semantic_tests))
 

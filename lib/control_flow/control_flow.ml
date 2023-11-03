@@ -1,3 +1,5 @@
+[@@@warning "-16"]
+
 module Expr = Semantic.Expr
 module Bop = Expr.Bop
 

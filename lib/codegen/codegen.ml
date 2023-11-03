@@ -31,7 +31,7 @@ let emit_obj module_ ~filename =
 
 type binding =
   | Value of llvalue
-  | Pointer of llvalue
+  | Pointer of lltype * llvalue
 
 let codegen_cf module_ (cf: Control_flow.t) =
   let module Expr = Control_flow.Expr in
@@ -48,7 +48,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Float64 -> double_type (module_context module_)
     | Array { elt; size } -> array_type (codegen_type elt) size
     | Struct _ -> assert false
-    | Reference typ -> pointer_type @@ codegen_type typ
+    | Reference _ -> pointer_type (module_context module_)
     | Fun { params; ret } ->
       function_type (codegen_type ret)
       @@ Array.of_list_map params ~f:codegen_type
@@ -56,7 +56,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
 
   let codegen_lvalue_name ident =
     match Hashtbl.find_exn names ident with
-    | Pointer p -> p
+    | Pointer (_, p) -> p
     | Value _ -> assert false
   in
 
@@ -65,17 +65,19 @@ let codegen_cf module_ (cf: Control_flow.t) =
     | Name { ident; _ } -> codegen_lvalue_name ident
     | Deref arg ->
       let ptr = codegen_lvalue arg ~builder in
-      build_load ptr (value_name ptr ^ ".deref") builder
+      let typ = codegen_type (Expr.typ arg) in
+      build_load typ ptr (value_name ptr ^ ".deref") builder
     | Subscript { arg; idx; _ } ->
+      let typ = codegen_type (Expr.typ arg) in
       let arg = codegen_lvalue arg ~builder in
       let zero = const_int (codegen_type Type.int32) 0 in
       let idx = codegen_rvalue idx ~builder in
-      build_gep arg [|zero; idx|] (value_name arg ^ ".i") builder
+      build_gep typ arg [|zero; idx|] (value_name arg ^ ".i") builder
     | _ -> assert false
   and codegen_rvalue_name ident ~builder =
     match Hashtbl.find_exn names ident with
     | Value v -> v
-    | Pointer p -> build_load p ident builder
+    | Pointer (typ, p) -> build_load typ p ident builder
   and codegen_rvalue (expr: Expr.t) ~builder =
     let codegen_rvalue = codegen_rvalue ~builder in
     let codegen_bop ~(op: Bop.t) ~lhs ~rhs =
@@ -114,21 +116,28 @@ let codegen_cf module_ (cf: Control_flow.t) =
       const_array (codegen_type elt) (Array.map elts ~f:codegen_rvalue)
     | Array _ -> assert false
     | Subscript _ ->
+      let typ = codegen_type (Expr.typ expr) in
       let elt_pointer = codegen_lvalue expr ~builder in
-      build_load elt_pointer (value_name elt_pointer ^ ".0") builder
+      build_load typ elt_pointer (value_name elt_pointer ^ ".0") builder
     | Binop { op; lhs; rhs; _ } -> codegen_bop ~op ~lhs ~rhs
     | Call { callee; args; _ } ->
       let name = if Type.equal Type.void @@ Type.ret_exn @@ Expr.typ callee
         then "" else "calltmp" in
+      let typ = codegen_type @@ Expr.typ callee in
+      Printf.eprintf "FOO\n%!";
       let callee = codegen_rvalue callee in
+      Printf.eprintf "FOO\n%!";
       let args = Array.of_list_map args ~f:codegen_rvalue in
-      build_call callee args name builder
+      Printf.eprintf "FOO\n%!";
+      let r = build_call typ callee args name builder in
+      Printf.eprintf "FOO\n%!";
+      r
     | Let_in { ident; binding; body; _ } ->
       let binding_type = codegen_type @@ Expr.typ binding in
       let pointer = build_alloca binding_type ident builder in
       let binding = codegen_rvalue binding in
       ignore (build_store binding pointer builder : llvalue);
-      Hashtbl.set names ~key:ident ~data:(Pointer binding);
+      Hashtbl.set names ~key:ident ~data:(Pointer (binding_type, binding));
       codegen_rvalue body
   in
 
@@ -138,10 +147,11 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (codegen_rvalue expr ~builder : llvalue)
     | Let { ident; binding; typ; _ }
     | Var { ident; binding; typ; _ } ->
-      let pointer = build_alloca (codegen_type typ) ident builder in
+      let typ = codegen_type typ in
+      let pointer = build_alloca typ ident builder in
       let binding = codegen_rvalue binding ~builder in
       ignore (build_store binding pointer builder : llvalue);
-      Hashtbl.set names ~key:ident ~data:(Pointer pointer)
+      Hashtbl.set names ~key:ident ~data:(Pointer (typ, pointer))
     | Assign { dst; src; _ } ->
       let dst = codegen_lvalue dst ~builder in
       let src = codegen_rvalue src ~builder in
@@ -209,10 +219,10 @@ let codegen_cf module_ (cf: Control_flow.t) =
     let init_entry = entry_block init_ctors_func in
     let builder = builder_at_end (module_context module_) init_entry in
     Stack.until_empty ctors
-      (fun ctor -> ignore (build_call ctor [||] "" builder : llvalue));
+      (fun ctor -> ignore (build_call ctor_type ctor [||] "" builder : llvalue));
     ignore (build_ret_void builder : llvalue);
     let global_ctors = define_global "llvm.global_ctors"
-        (const_array (pointer_type ctor_type) [|init_ctors_func|])
+        (const_array (pointer_type (module_context module_)) [|init_ctors_func|])
         module_ in
     set_linkage Linkage.Appending global_ctors
   in
@@ -238,7 +248,7 @@ let codegen_cf module_ (cf: Control_flow.t) =
       ignore (build_store binding global ctor_builder : llvalue);
       ignore (build_ret_void ctor_builder : llvalue);
       add_ctor ctor_func;
-      Hashtbl.set names ~key:ident ~data:(Pointer global);
+      Hashtbl.set names ~key:ident ~data:(Pointer (typ, global));
     | Fun_expr { ident; params; typ; body; _ } ->
       let func = define_function (rename_func ident ~pure:true) (codegen_type typ) module_ in
       Hashtbl.set names ~key:ident ~data:(Value func);

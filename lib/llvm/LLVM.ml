@@ -28,15 +28,13 @@ let is_function_type typ =
   | TypeKind.Function -> true
   | _ -> false
 
-let is_pointer_type ?element_type:element_is_type typ =
-  match classify_type typ, element_is_type with
-  | TypeKind.Pointer, None -> true
-  | TypeKind.Pointer, Some element_is_type ->
-    element_is_type @@ element_type typ
+let is_pointer_type typ =
+  match classify_type typ with
+  | TypeKind.Pointer -> true
   | _ -> false
 
-let is_pointer ?element_type value =
-  is_pointer_type ?element_type @@ type_of value
+let is_pointer value =
+  is_pointer_type @@ type_of value
 
 let is_struct_type typ =
   match classify_type typ with
@@ -60,12 +58,12 @@ let const_float typ value =
   assert (is_fp_type typ);
   const_float typ value
 
-let build_load src name builder =
+let build_load typ src name builder =
   assert (is_pointer src);
-  build_load src name builder
+  build_load typ src name builder
 
 let build_store src dst builder =
-  assert (equal_lltype (type_of dst) (pointer_type @@ type_of src));
+  assert (is_pointer dst);
   build_store src dst builder
 
 let build_cond_br cond iftrue iffalse builder =
@@ -82,24 +80,16 @@ let build_fadd lhs rhs name builder =
   assert (is_fp rhs);
   build_fadd lhs rhs name builder
 
-let build_call callee args name builder =
-  let callee_type = type_of callee in
-  assert (is_pointer_type callee_type);
-  let param_types = param_types @@ element_type callee_type in
-  let arg_types = Array.map args ~f:type_of in
-  assert (Array.equal equal_lltype param_types arg_types);
-  build_call callee args name builder
-
 let build_struct_gep value idx name builder =
-  assert (is_pointer ~element_type:is_struct_type value);
-  build_struct_gep value idx name builder
+  assert (is_pointer value);
+  build_struct_gep (type_of value) value idx name builder
 
 let build_bitcast value typ name builder =
   assert (Poly.equal (size_of typ) (size_of @@ type_of value));
   build_bitcast value typ name builder
 
 let append_block ctx name func =
-  assert (is_pointer ~element_type:is_function_type func);
+  assert (is_pointer func);
   append_block ctx name func
 
 let define_function name typ m =

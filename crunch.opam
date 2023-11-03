@@ -8,9 +8,10 @@ homepage: "https://github.com/jordydickinson/crunch"
 bug-reports: "https://github.com/jordydickinson/crunch/issues"
 depends: [
   "dune" {>= "2.6"}
-  "core" {= "0.13"}
-  "menhir" {>= "20200123"}
-  "llvm" {>= "10.0" & < "11.0"}
+  "core" {>= "0.16.0"}
+  "core_unix" {>= "0.16.0"}
+  "menhir" {>= "20230608"}
+  "llvm" {>= "16.0.6"}
 ]
 build: [
   ["dune" "subst"] {pinned}
